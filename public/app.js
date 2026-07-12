@@ -197,7 +197,7 @@
   function providerUsageHtml(a) {
     return `<div class="usage-stack">
       <span class="usage-inline" title="Gateway usage: current minute, today, this month">${fmtUsage(a)}</span>
-      <span class="provider-usage muted" id="provider-usage-${a.id}">provider: ${supportsProviderUsage(a) ? "loading…" : (a.hasSecret ? "no usage API" : "n/a")}</span>
+      <span class="provider-usage muted" data-provider-usage="${escapeHtml(a.id)}">provider: ${supportsProviderUsage(a) ? "loading…" : (a.hasSecret ? "no usage API" : "n/a")}</span>
     </div>`;
   }
 
@@ -230,22 +230,28 @@
   function renderAccounts(accounts) {
     accountsCache = accounts;
     const body = $("accounts-body");
+    const cards = $("accounts-cards");
     body.innerHTML = "";
+    cards.innerHTML = "";
     for (const a of accountsCache) {
+      const secretMeta = a.hasSecret ? escapeHtml(a.secretPreview || "••••") : "no secret";
+      const baseUrl = a.baseUrl ? escapeHtml(a.baseUrl) : "";
+      const status = statusPill(a);
+
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td><input type="checkbox" data-toggle="${a.id}" ${a.enabled ? "checked" : ""} /></td>
         <td>
           <strong>${escapeHtml(a.name)}</strong>
-          <div class="account-meta muted small">${a.hasSecret ? escapeHtml(a.secretPreview || "••••") : "no secret"}
-          ${a.baseUrl ? " · " + escapeHtml(a.baseUrl) : ""}</div>
+          <div class="account-meta muted small">${secretMeta}
+          ${baseUrl ? " · " + baseUrl : ""}</div>
         </td>
         <td><code>${escapeHtml(a.provider)}</code></td>
         <td>${a.priority}</td>
         <td>${a.weight}</td>
         <td class="muted small">${fmtLimits(a)}</td>
         <td>${providerUsageHtml(a)}</td>
-        <td>${statusPill(a)}</td>
+        <td>${status}</td>
         <td class="actions">
           <button data-test="${a.id}" class="ghost">Test</button>
           <button data-usage="${a.id}" class="ghost">Usage</button>
@@ -253,64 +259,103 @@
           <button data-del="${a.id}" class="danger">Delete</button>
         </td>`;
       body.appendChild(tr);
+
+      const card = document.createElement("article");
+      card.className = "mobile-card account-mobile-card";
+      card.innerHTML = `
+        <div class="mobile-card-head">
+          <div class="mobile-card-title-wrap">
+            <div class="mobile-title">${escapeHtml(a.name)}</div>
+            <div class="mobile-subtitle"><code>${escapeHtml(a.provider)}</code> · ${secretMeta}</div>
+          </div>
+          ${status}
+        </div>
+        ${baseUrl ? `<div class="mobile-url muted small">${baseUrl}</div>` : ""}
+        <div class="mobile-fields">
+          <div class="mobile-field"><span>Enabled</span><label class="mobile-check"><input type="checkbox" data-toggle="${a.id}" ${a.enabled ? "checked" : ""} /> ${a.enabled ? "On" : "Off"}</label></div>
+          <div class="mobile-field"><span>Priority</span><strong>${a.priority}</strong></div>
+          <div class="mobile-field"><span>Weight</span><strong>${a.weight}</strong></div>
+          <div class="mobile-field"><span>Limits</span><strong>${fmtLimits(a)}</strong></div>
+        </div>
+        <div class="mobile-usage">${providerUsageHtml(a)}</div>
+        <div class="mobile-actions actions">
+          <button data-test="${a.id}" class="ghost">Test</button>
+          <button data-usage="${a.id}" class="ghost">Usage</button>
+          <button data-edit="${a.id}" class="ghost">Edit</button>
+          <button data-del="${a.id}" class="danger">Delete</button>
+        </div>`;
+      cards.appendChild(card);
     }
 
-    body.querySelectorAll("[data-toggle]").forEach((el) => {
-      el.onchange = async () => {
-        await api(`/admin/api/accounts/${el.dataset.toggle}`, {
-          method: "PATCH",
-          body: JSON.stringify({ enabled: el.checked }),
-        });
-        await refreshAccounts();
-      };
-    });
-    body.querySelectorAll("[data-edit]").forEach((el) => {
-      el.onclick = () => openDialog(accountsCache.find((x) => x.id === el.dataset.edit));
-    });
-    body.querySelectorAll("[data-del]").forEach((el) => {
-      el.onclick = async () => {
-        if (!confirm("Delete this account?")) return;
-        await api(`/admin/api/accounts/${el.dataset.del}`, { method: "DELETE" });
-        await refreshAccounts();
-      };
-    });
-    body.querySelectorAll("[data-usage]").forEach((el) => {
-      el.onclick = async () => loadProviderUsage(el.dataset.usage, el);
-    });
-    body.querySelectorAll("[data-test]").forEach((el) => {
-      el.onclick = async () => {
-        el.disabled = true;
-        el.textContent = "…";
-        try {
-          const r = await api(`/admin/api/accounts/${el.dataset.test}/test`, {
-            method: "POST",
-            body: "{}",
+    bindAccountActions(body);
+    bindAccountActions(cards);
+
+    function bindAccountActions(root) {
+      root.querySelectorAll("[data-toggle]").forEach((el) => {
+        el.onchange = async () => {
+          await api(`/admin/api/accounts/${el.dataset.toggle}`, {
+            method: "PATCH",
+            body: JSON.stringify({ enabled: el.checked }),
           });
-          showToast(`OK (${r.ms}ms): ${r.sample?.title || ""} - ${r.sample?.url || ""}`, "success");
-        } catch (e) {
-          showToast(`Fail: ${e.message}`, "error");
-        } finally {
-          el.disabled = false;
-          el.textContent = "Test";
           await refreshAccounts();
-        }
-      };
-    });
+        };
+      });
+      root.querySelectorAll("[data-edit]").forEach((el) => {
+        el.onclick = () => openDialog(accountsCache.find((x) => x.id === el.dataset.edit));
+      });
+      root.querySelectorAll("[data-del]").forEach((el) => {
+        el.onclick = async () => {
+          if (!confirm("Delete this account?")) return;
+          await api(`/admin/api/accounts/${el.dataset.del}`, { method: "DELETE" });
+          await refreshAccounts();
+        };
+      });
+      root.querySelectorAll("[data-usage]").forEach((el) => {
+        el.onclick = async () => loadProviderUsage(el.dataset.usage, el);
+      });
+      root.querySelectorAll("[data-test]").forEach((el) => {
+        el.onclick = async () => {
+          el.disabled = true;
+          el.textContent = "…";
+          try {
+            const r = await api(`/admin/api/accounts/${el.dataset.test}/test`, {
+              method: "POST",
+              body: "{}",
+            });
+            showToast(`OK (${r.ms}ms): ${r.sample?.title || ""} - ${r.sample?.url || ""}`, "success");
+          } catch (e) {
+            showToast(`Fail: ${e.message}`, "error");
+          } finally {
+            el.disabled = false;
+            el.textContent = "Test";
+            await refreshAccounts();
+          }
+        };
+      });
+    }
   }
 
   async function loadProviderUsage(id, btn) {
-    const target = $(`provider-usage-${id}`);
-    if (!target) return;
+    const targets = Array.from(document.querySelectorAll(".provider-usage"))
+      .filter((el) => el.dataset.providerUsage === id);
+    if (!targets.length) return;
     if (btn) btn.disabled = true;
-    target.textContent = "provider: loading…";
+    targets.forEach((target) => {
+      target.classList.remove("error");
+      target.textContent = "provider: loading…";
+    });
     try {
       const r = await api(`/admin/api/accounts/${id}/usage`);
       const usage = r.usage || {};
-      target.classList.toggle("error", !usage.available);
-      target.textContent = `provider: ${usage.available ? (usage.label || "available") : (usage.error || "unavailable")}`;
+      targets.forEach((target) => {
+        target.classList.toggle("error", !usage.available);
+        target.textContent = `provider: ${usage.available ? (usage.label || "available") : (usage.error || "unavailable")}`;
+      });
     } catch (e) {
-      target.classList.add("error");
-      target.textContent = `provider: ${e.message}`;
+      targets.forEach((target) => {
+        target.classList.add("error");
+        target.textContent = `provider: ${e.message}`;
+      });
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -498,52 +543,89 @@
   function renderKeys(keys) {
     keysCache = keys;
     const body = $("keys-body");
+    const cards = $("keys-cards");
     body.innerHTML = "";
+    cards.innerHTML = "";
     for (const k of keysCache) {
+      const providers = (k.allowedProviders || []).length ? escapeHtml(k.allowedProviders.join(", ")) : "any";
+      const notes = escapeHtml(k.notes || "");
+      const limits = fmtKeyLimits(k);
+      const lastUsed = escapeHtml(k.lastUsedAt || "never");
+      const status = k.enabled ? `<span class="pill ok">enabled</span>` : `<span class="pill warn">disabled</span>`;
+
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td><input type="checkbox" data-key-toggle="${k.id}" ${k.enabled ? "checked" : ""} /></td>
-        <td><strong>${escapeHtml(k.name)}</strong><div class="muted small">${escapeHtml(k.notes || "")}</div></td>
+        <td><strong>${escapeHtml(k.name)}</strong><div class="muted small">${notes}</div></td>
         <td><code>${escapeHtml(k.tokenPreview)}</code></td>
-        <td class="muted small">${(k.allowedProviders || []).length ? escapeHtml(k.allowedProviders.join(", ")) : "any"}</td>
-        <td class="muted small">${fmtKeyLimits(k)}</td>
-        <td class="muted small">${escapeHtml(k.lastUsedAt || "never")}</td>
+        <td class="muted small">${providers}</td>
+        <td class="muted small">${limits}</td>
+        <td class="muted small">${lastUsed}</td>
         <td class="actions">
           <button data-key-edit="${k.id}" class="ghost">Edit</button>
           <button data-key-reroll="${k.id}" class="ghost">Reroll</button>
           <button data-key-del="${k.id}" class="danger">Delete</button>
         </td>`;
       body.appendChild(tr);
+
+      const card = document.createElement("article");
+      card.className = "mobile-card key-mobile-card";
+      card.innerHTML = `
+        <div class="mobile-card-head">
+          <div class="mobile-card-title-wrap">
+            <div class="mobile-title">${escapeHtml(k.name)}</div>
+            ${notes ? `<div class="mobile-subtitle">${notes}</div>` : ""}
+          </div>
+          ${status}
+        </div>
+        <div class="mobile-fields">
+          <div class="mobile-field mobile-field-wide"><span>Key</span><strong><code>${escapeHtml(k.tokenPreview)}</code></strong></div>
+          <div class="mobile-field"><span>Enabled</span><label class="mobile-check"><input type="checkbox" data-key-toggle="${k.id}" ${k.enabled ? "checked" : ""} /> ${k.enabled ? "On" : "Off"}</label></div>
+          <div class="mobile-field"><span>Providers</span><strong>${providers}</strong></div>
+          <div class="mobile-field"><span>Limits</span><strong>${limits}</strong></div>
+          <div class="mobile-field"><span>Last used</span><strong>${lastUsed}</strong></div>
+        </div>
+        <div class="mobile-actions actions">
+          <button data-key-edit="${k.id}" class="ghost">Edit</button>
+          <button data-key-reroll="${k.id}" class="ghost">Reroll</button>
+          <button data-key-del="${k.id}" class="danger">Delete</button>
+        </div>`;
+      cards.appendChild(card);
     }
 
-    body.querySelectorAll("[data-key-toggle]").forEach((el) => {
-      el.onchange = async () => {
-        await api(`/admin/api/api-keys/${el.dataset.keyToggle}`, {
-          method: "PATCH",
-          body: JSON.stringify({ enabled: el.checked }),
-        });
-        await refreshKeys();
-      };
-    });
-    body.querySelectorAll("[data-key-edit]").forEach((el) => {
-      el.onclick = () => openKeyDialog(keysCache.find((x) => x.id === el.dataset.keyEdit));
-    });
-    body.querySelectorAll("[data-key-reroll]").forEach((el) => {
-      el.onclick = () => {
-        const key = keysCache.find((x) => x.id === el.dataset.keyReroll);
-        pendingRerollKeyId = el.dataset.keyReroll;
-        $("reroll-key-name").textContent = key?.name || "this key";
-        $("reroll-key-msg").textContent = "";
-        $("reroll-key-dialog").showModal();
-      };
-    });
-    body.querySelectorAll("[data-key-del]").forEach((el) => {
-      el.onclick = async () => {
-        if (!confirm("Delete this API key?")) return;
-        await api(`/admin/api/api-keys/${el.dataset.keyDel}`, { method: "DELETE" });
-        await refreshKeys();
-      };
-    });
+    bindKeyActions(body);
+    bindKeyActions(cards);
+
+    function bindKeyActions(root) {
+      root.querySelectorAll("[data-key-toggle]").forEach((el) => {
+        el.onchange = async () => {
+          await api(`/admin/api/api-keys/${el.dataset.keyToggle}`, {
+            method: "PATCH",
+            body: JSON.stringify({ enabled: el.checked }),
+          });
+          await refreshKeys();
+        };
+      });
+      root.querySelectorAll("[data-key-edit]").forEach((el) => {
+        el.onclick = () => openKeyDialog(keysCache.find((x) => x.id === el.dataset.keyEdit));
+      });
+      root.querySelectorAll("[data-key-reroll]").forEach((el) => {
+        el.onclick = () => {
+          const key = keysCache.find((x) => x.id === el.dataset.keyReroll);
+          pendingRerollKeyId = el.dataset.keyReroll;
+          $("reroll-key-name").textContent = key?.name || "this key";
+          $("reroll-key-msg").textContent = "";
+          $("reroll-key-dialog").showModal();
+        };
+      });
+      root.querySelectorAll("[data-key-del]").forEach((el) => {
+        el.onclick = async () => {
+          if (!confirm("Delete this API key?")) return;
+          await api(`/admin/api/api-keys/${el.dataset.keyDel}`, { method: "DELETE" });
+          await refreshKeys();
+        };
+      });
+    }
   }
 
   function openKeyDialog(key) {
@@ -612,39 +694,74 @@
     renderStats(s);
   }
 
+  function openEventDetail(e) {
+    $("event-ip").textContent = e.ip || "unknown";
+    $("event-ua").textContent = e.userAgent || "unknown";
+    $("event-query").textContent = e.query || "none";
+    try {
+      const parsed = typeof e.responseJson === "string" ? JSON.parse(e.responseJson) : e.responseJson;
+      $("event-json").textContent = parsed ? JSON.stringify(parsed, null, 2) : (e.error || "No response data");
+    } catch {
+      $("event-json").textContent = e.responseJson || e.error || "No response data";
+    }
+    $("event-dialog").showModal();
+  }
+
   function renderStats(s) {
     $("stats-summary").innerHTML = `
       <div class="stat"><div class="n">${s.today?.ok || 0}</div><div class="l">OK today</div></div>
       <div class="stat"><div class="n">${s.today?.fail || 0}</div><div class="l">Failures today</div></div>
       <div class="stat"><div class="n">${s.accounts?.length || 0}</div><div class="l">Accounts</div></div>`;
     const body = $("stats-body");
+    const cards = $("stats-cards");
     body.innerHTML = "";
+    cards.innerHTML = "";
     for (const e of s.recent || []) {
+      const ok = e.ok ? `<span class="pill ok">✓</span>` : `<span class="pill bad">✗</span>`;
+      const createdAt = escapeHtml(e.createdAt || "");
+      const ip = escapeHtml(e.ip || "");
+      const query = escapeHtml(e.query || "");
+      const provider = escapeHtml(e.provider || "");
+      const resultCount = e.resultCount ?? "";
+      const latency = e.latencyMs ?? "";
+      const error = escapeHtml(e.error || "");
+
       const tr = document.createElement("tr");
       tr.innerHTML = `
-        <td class="muted small">${escapeHtml(e.createdAt || "")}</td>
-        <td class="muted small">${escapeHtml(e.ip || "")}</td>
-        <td><strong>${escapeHtml(e.query || "")}</strong></td>
-        <td>${escapeHtml(e.provider)}</td>
-        <td>${e.ok ? `<span class="pill ok">✓</span>` : `<span class="pill bad">✗</span>`}</td>
-        <td>${e.resultCount ?? ""}</td>
-        <td class="muted">${e.latencyMs ?? ""}</td>
-        <td class="muted small error">${escapeHtml(e.error || "")}</td>
+        <td class="muted small">${createdAt}</td>
+        <td class="muted small">${ip}</td>
+        <td><strong>${query}</strong></td>
+        <td>${provider}</td>
+        <td>${ok}</td>
+        <td>${resultCount}</td>
+        <td class="muted">${latency}</td>
+        <td class="muted small error">${error}</td>
         <td><button class="ghost small inspect-btn">View</button></td>`;
-
-      tr.querySelector(".inspect-btn").onclick = () => {
-        $("event-ip").textContent = e.ip || "unknown";
-        $("event-ua").textContent = e.userAgent || "unknown";
-        $("event-query").textContent = e.query || "none";
-        try {
-          const parsed = typeof e.responseJson === "string" ? JSON.parse(e.responseJson) : e.responseJson;
-          $("event-json").textContent = parsed ? JSON.stringify(parsed, null, 2) : (e.error || "No response data");
-        } catch {
-          $("event-json").textContent = e.responseJson || e.error || "No response data";
-        }
-        $("event-dialog").showModal();
-      };
+      tr.querySelector(".inspect-btn").onclick = () => openEventDetail(e);
       body.appendChild(tr);
+
+      const card = document.createElement("article");
+      card.className = "mobile-card event-mobile-card";
+      card.innerHTML = `
+        <div class="mobile-card-head">
+          <div class="mobile-card-title-wrap">
+            <div class="mobile-title">${query || "No query"}</div>
+            <div class="mobile-subtitle">${createdAt || "unknown time"}</div>
+          </div>
+          ${ok}
+        </div>
+        <div class="mobile-fields">
+          <div class="mobile-field"><span>Provider</span><strong>${provider || "—"}</strong></div>
+          <div class="mobile-field"><span>Results</span><strong>${resultCount}</strong></div>
+          <div class="mobile-field"><span>Latency</span><strong>${latency}${latency === "" ? "" : "ms"}</strong></div>
+          <div class="mobile-field"><span>IP / App</span><strong>${ip || "unknown"}</strong></div>
+          ${error ? `<div class="mobile-field mobile-field-wide error"><span>Error</span><strong>${error}</strong></div>` : ""}
+        </div>
+        <div class="mobile-actions actions">
+          <button class="ghost" data-event-view>View details</button>
+        </div>`;
+      card.querySelector("[data-event-view]").onclick = () => openEventDetail(e);
+      cards.appendChild(card);
     }
   }
 

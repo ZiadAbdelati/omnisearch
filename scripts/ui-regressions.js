@@ -146,6 +146,19 @@ function click(element) {
   assert.doesNotMatch(fs.readFileSync('public/styles.css', 'utf8'), /\.key-flow-actions button[\s\S]*min-width/, 'key flow primary and danger buttons should keep their normal button sizing');
   assert.match(fs.readFileSync('public/styles.css', 'utf8'), /\.key-flow-actions[\s\S]*display:\s*grid[\s\S]*grid-auto-columns:\s*1fr/, 'key flow actions should use equal grid columns so only shorter secondary buttons grow to match their partner');
   assert.match(fs.readFileSync('public/styles.css', 'utf8'), /\.key-flow-actions \.modal-secondary[\s\S]*font-weight:\s*600/, 'key flow secondary buttons should match the action button text weight');
+  assert.match(html, /<meta name="viewport" content="width=device-width, initial-scale=1" \/>/, 'mobile browsers must render at device width');
+  assert.match(html, /id="accounts-cards" class="mobile-list"/, 'accounts must have a mobile card list');
+  assert.match(html, /id="keys-cards" class="mobile-list"/, 'API keys must have a mobile card list');
+  assert.match(html, /id="stats-cards" class="mobile-list"/, 'usage events must have a mobile card list');
+  assert.match(appJs, /\$\("accounts-cards"\)/, 'accounts renderer must populate mobile cards');
+  assert.match(appJs, /\$\("keys-cards"\)/, 'keys renderer must populate mobile cards');
+  assert.match(appJs, /\$\("stats-cards"\)/, 'stats renderer must populate mobile cards');
+  assert.match(appJs, /function openEventDetail\(e\)/, 'usage mobile cards must share the event detail action');
+  assert.match(fs.readFileSync('public/styles.css', 'utf8'), /\.mobile-list\s*\{\s*display:\s*none/, 'mobile card lists should be hidden on desktop');
+  assert.match(fs.readFileSync('public/styles.css', 'utf8'), /@media \(max-width:\s*720px\)[\s\S]*#tab-accounts \.table-wrap[\s\S]*display:\s*none/, 'account table must be hidden on mobile');
+  assert.match(fs.readFileSync('public/styles.css', 'utf8'), /@media \(max-width:\s*720px\)[\s\S]*#tab-keys \.table-wrap[\s\S]*display:\s*none/, 'key table must be hidden on mobile');
+  assert.match(fs.readFileSync('public/styles.css', 'utf8'), /@media \(max-width:\s*720px\)[\s\S]*#tab-stats \.table-wrap[\s\S]*display:\s*none/, 'usage event table must be hidden on mobile');
+  assert.match(fs.readFileSync('public/styles.css', 'utf8'), /@media \(max-width:\s*720px\)[\s\S]*\.mobile-list[\s\S]*display:\s*grid/, 'mobile card lists must render on mobile');
 
   const { elements, document } = createHarness();
   elements.get('new-key-token').textContent = 'sgk_actual_secret';

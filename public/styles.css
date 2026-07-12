@@ -146,6 +146,8 @@ main { padding: 20px; max-width: 1200px; margin: 0 auto; }
   border-radius: var(--radius);
   background: rgba(18,24,33,.85);
 }
+.mobile-list { display: none; }
+
 table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
 th, td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
 th { color: var(--muted); font-weight: 600; background: rgba(0,0,0,.2); }
@@ -276,6 +278,137 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
 @media (max-width: 800px) {
   .topbar { flex-wrap: wrap; }
   .tabs { order: 3; width: 100%; overflow: auto; }
+}
+
+@media (max-width: 720px) {
+  body { background: radial-gradient(900px 480px at 0% -10%, #17253d 0%, var(--bg) 58%); }
+  .topbar {
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+  }
+  .brand {
+    flex: 1 1 calc(100% - 92px);
+    min-width: 0;
+  }
+  #health-line { max-width: 100%; overflow-wrap: anywhere; line-height: 1.25; }
+  #logout-btn { flex: 0 0 auto; }
+  .tabs {
+    order: 3;
+    width: 100%;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: 0 0 auto; padding: 9px 12px; }
+  main { padding: 16px 12px 24px; }
+  .panel-head { align-items: center; gap: 10px; flex-wrap: wrap; }
+  .panel-head h2 { font-size: 26px; line-height: 1.1; }
+  .panel-head > button { flex: 1 0 auto; }
+  .card { padding: 16px; }
+  input, select, textarea { width: 100%; }
+  .row, .row-2 { flex-direction: column; gap: 0; }
+  .form-grid { max-width: none; }
+  .cards { grid-template-columns: 1fr; }
+  #tab-accounts .table-wrap { display: none; }
+  #tab-keys .table-wrap { display: none; }
+  #tab-stats .table-wrap { display: none; }
+  .mobile-list {
+    display: grid;
+    gap: 12px;
+  }
+  .mobile-card {
+    background: linear-gradient(180deg, rgba(24,33,49,.96), rgba(18,24,33,.96));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+    box-shadow: 0 14px 34px rgba(0,0,0,.28);
+  }
+  .mobile-card-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .mobile-card-title-wrap { min-width: 0; }
+  .mobile-title {
+    font-size: 15px;
+    font-weight: 750;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+  .mobile-subtitle {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+  .mobile-url {
+    margin-top: 10px;
+    overflow-wrap: anywhere;
+  }
+  .mobile-fields {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .mobile-field {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    padding: 9px;
+    border: 1px solid rgba(36,48,68,.8);
+    border-radius: 10px;
+    background: rgba(10,16,24,.32);
+  }
+  .mobile-field-wide { grid-column: 1 / -1; }
+  .mobile-field span {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  .mobile-field strong,
+  .mobile-check {
+    min-width: 0;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 650;
+    overflow-wrap: anywhere;
+  }
+  .mobile-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+  }
+  .mobile-check input { width: auto; }
+  .mobile-usage {
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid rgba(36,48,68,.8);
+    border-radius: 10px;
+    background: rgba(10,16,24,.26);
+  }
+  .mobile-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+    white-space: normal;
+  }
+  .mobile-actions button { width: 100%; }
+  .dialog-card { inline-size: min(var(--modal-inline-size), calc(100vw - 24px)); }
+  .dialog-actions { flex-wrap: wrap; }
+  .dialog-actions button { flex: 1 1 auto; }
+  .key-flow-actions { width: 100%; }
+  .code-block { max-width: 100%; max-height: 58vh; }
+  .toast-container { left: 12px; right: 12px; top: 12px; }
+  .toast { max-width: none; }
 }
 
 .toast-container {
