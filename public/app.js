@@ -355,13 +355,32 @@
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td class="muted small">${escapeHtml(e.createdAt || "")}</td>
+        <td class="muted small">${escapeHtml(e.ip || "")}</td>
+        <td><strong>${escapeHtml(e.query || "")}</strong></td>
         <td>${escapeHtml(e.provider)}</td>
-        <td>${e.ok ? "✓" : "✗"}</td>
+        <td>${e.ok ? `<span class="pill ok">✓</span>` : `<span class="pill bad">✗</span>`}</td>
         <td>${e.resultCount ?? ""}</td>
-        <td>${e.latencyMs ?? ""}</td>
-        <td class="muted small">${escapeHtml(e.error || "")}</td>`;
+        <td class="muted">${e.latencyMs ?? ""}</td>
+        <td class="muted small error">${escapeHtml(e.error || "")}</td>
+        <td><button class="ghost small inspect-btn">View</button></td>`;
+      
+      tr.querySelector(".inspect-btn").onclick = () => {
+        $("event-ip").textContent = e.ip || "unknown";
+        $("event-ua").textContent = e.userAgent || "unknown";
+        $("event-query").textContent = e.query || "none";
+        try {
+          const parsed = typeof e.responseJson === "string" ? JSON.parse(e.responseJson) : e.responseJson;
+          $("event-json").textContent = parsed ? JSON.stringify(parsed, null, 2) : (e.error || "No response data");
+        } catch {
+          $("event-json").textContent = e.responseJson || e.error || "No response data";
+        }
+        $("event-dialog").showModal();
+      };
       body.appendChild(tr);
     }
+  }
+  $("refresh-stats").onclick = () => refreshStats();
+  $("close-event-dialog").onclick = () => $("event-dialog").close();
   }
   $("refresh-stats").onclick = () => refreshStats();
 
