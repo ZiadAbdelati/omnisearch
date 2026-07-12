@@ -129,7 +129,7 @@ main { padding: 20px; max-width: 1200px; margin: 0 auto; }
   border-radius: var(--radius);
   background: rgba(18,24,33,.85);
 }
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
 th, td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle; }
 th { color: var(--muted); font-weight: 600; background: rgba(0,0,0,.2); }
 tr:last-child td { border-bottom: none; }
