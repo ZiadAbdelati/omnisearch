@@ -10,6 +10,7 @@ const {
   deleteAccount,
   accountFromRow,
   usageStats,
+  accountUsageStats,
   listSettings,
   setSetting,
   getSetting,
@@ -21,6 +22,7 @@ const {
   deleteApiKey,
 } = require("../db");
 const { testAccountConfig } = require("../router");
+const { upstreamUsage } = require("../providerUsage");
 const { PROVIDERS, ProviderError } = require("../providers");
 
 const router = express.Router();
@@ -29,6 +31,7 @@ router.use(requireAdminAuth);
 
 function publicAccount(row) {
   const a = accountFromRow(row);
+  Object.assign(a, accountUsageStats(row.id));
   if (row.secret_enc) {
     try {
       a.secretPreview = redactSecret(open(row.secret_enc));
@@ -178,6 +181,29 @@ router.post("/accounts/:id/test", async (req, res) => {
       error: msg,
       code: e.code,
     });
+  }
+});
+
+router.get("/accounts/:id/usage", async (req, res) => {
+  const row = getAccount(req.params.id);
+  if (!row) return res.status(404).json({ error: "Not found" });
+  let secret = null;
+  try {
+    secret = row.secret_enc ? open(row.secret_enc) : null;
+  } catch {
+    return res.status(500).json({ error: "Failed to decrypt secret" });
+  }
+  try {
+    const usage = await upstreamUsage({
+      id: row.id,
+      provider: row.provider,
+      name: row.name,
+      secret,
+      baseUrl: row.base_url,
+    });
+    res.json({ usage });
+  } catch (e) {
+    res.status(502).json({ error: e.message || String(e) });
   }
 });
 

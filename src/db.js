@@ -566,6 +566,20 @@ function countRpm(accountId) {
   return countUsage(accountId, since, false);
 }
 
+function accountUsageStats(accountId) {
+  const day = new Date();
+  day.setUTCHours(0, 0, 0, 0);
+  const month = new Date(
+    Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), 1),
+  );
+  return {
+    usedToday: countUsage(accountId, day.toISOString(), true),
+    usedMonth: countUsage(accountId, month.toISOString(), true),
+    rpm: countRpm(accountId),
+  };
+}
+
+
 function usageStats() {
   const day = new Date();
   day.setUTCHours(0, 0, 0, 0);
@@ -576,15 +590,10 @@ function usageStats() {
   const monthIso = month.toISOString();
 
   const accounts = listAccounts();
-  const perAccount = accounts.map((a) => {
-    const row = getAccount(a.id);
-    return {
-      ...accountFromRow(row),
-      usedToday: countUsage(a.id, dayIso, true),
-      usedMonth: countUsage(a.id, monthIso, true),
-      rpm: countRpm(a.id),
-    };
-  });
+  const perAccount = accounts.map((a) => ({
+    ...a,
+    ...accountUsageStats(a.id),
+  }));
 
   const totals = getDb()
     .prepare(
@@ -647,6 +656,7 @@ module.exports = {
   recordUsage,
   countUsage,
   countRpm,
+  accountUsageStats,
   usageStats,
   SCHEMA_VERSION,
 };

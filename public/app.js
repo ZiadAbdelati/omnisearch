@@ -71,11 +71,11 @@
       const meta = await api("/admin/api/meta");
       providersMeta = meta.providers || [];
       fillProviderSelect();
+      setActiveTab(localStorage.getItem(TAB_KEY) || "accounts");
       showApp();
       await refreshAccounts();
       await loadSettings();
       $("search-gateway-token").value = localStorage.getItem(GW_KEY) || "";
-      setActiveTab(localStorage.getItem(TAB_KEY) || "accounts");
     } catch (e) {
       sessionStorage.removeItem(TOKEN_KEY);
       showLogin(e.message || "Auth failed");
@@ -134,6 +134,23 @@
     return parts.join(" ") || "∞";
   }
 
+  function fmtUsage(a) {
+    return `rpm:${a.rpm || 0} · d:${a.usedToday || 0} · m:${a.usedMonth || 0}`;
+  }
+
+  function supportsProviderUsage(a) {
+    return a.hasSecret && ["tavily", "serpapi"].includes(a.provider);
+  }
+
+
+  function providerUsageHtml(a) {
+    return `<div class="usage-stack">
+      <span class="usage-inline" title="Gateway usage: current minute, today, this month">${fmtUsage(a)}</span>
+      <span class="provider-usage muted" id="provider-usage-${a.id}">provider: ${supportsProviderUsage(a) ? "loading…" : (a.hasSecret ? "no usage API" : "n/a")}</span>
+    </div>`;
+  }
+
+
   function statusPill(a) {
     if (!a.enabled) return `<span class="pill warn">disabled</span>`;
     if (a.cooldownUntil && new Date(a.cooldownUntil) > new Date()) {
@@ -172,9 +189,11 @@
         <td>${a.priority}</td>
         <td>${a.weight}</td>
         <td class="muted small">${fmtLimits(a)}</td>
+        <td>${providerUsageHtml(a)}</td>
         <td>${statusPill(a)}</td>
         <td class="actions">
           <button data-test="${a.id}" class="ghost">Test</button>
+          <button data-usage="${a.id}" class="ghost">Usage</button>
           <button data-edit="${a.id}" class="ghost">Edit</button>
           <button data-del="${a.id}" class="danger">Delete</button>
         </td>`;
@@ -200,6 +219,12 @@
         await refreshAccounts();
       };
     });
+    body.querySelectorAll("[data-usage]").forEach((el) => {
+      el.onclick = async () => loadProviderUsage(el.dataset.usage, el);
+    });
+    for (const a of accountsCache) {
+      if (supportsProviderUsage(a)) loadProviderUsage(a.id);
+    }
     body.querySelectorAll("[data-test]").forEach((el) => {
       el.onclick = async () => {
         el.disabled = true;
@@ -219,6 +244,24 @@
         }
       };
     });
+  }
+
+  async function loadProviderUsage(id, btn) {
+    const target = $(`provider-usage-${id}`);
+    if (!target) return;
+    if (btn) btn.disabled = true;
+    target.textContent = "provider: loading…";
+    try {
+      const r = await api(`/admin/api/accounts/${id}/usage`);
+      const usage = r.usage || {};
+      target.classList.toggle("error", !usage.available);
+      target.textContent = `provider: ${usage.available ? (usage.label || "available") : (usage.error || "unavailable")}`;
+    } catch (e) {
+      target.classList.add("error");
+      target.textContent = `provider: ${e.message}`;
+    } finally {
+      if (btn) btn.disabled = false;
+    }
   }
 
   const dialog = $("account-dialog");

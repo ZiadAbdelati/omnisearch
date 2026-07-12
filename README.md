@@ -57,6 +57,8 @@ In the UI (**Accounts → Add**):
 
 Lower **priority** is tried first. Use **Test** before saving if you want.
 
+The Accounts table shows gateway usage inline as `rpm`, `d` (today), and `m` (month). If the provider exposes a usage endpoint, provider-side quota/credit usage is loaded inline too; currently Tavily and SerpAPI expose API-readable usage in this gateway.
+
 ## Agent usage
 
 Generate a key in **API keys** first. Use per-key provider allowlists and RPM/day/month limits for clients.

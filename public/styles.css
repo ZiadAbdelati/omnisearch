@@ -141,6 +141,19 @@ tr:last-child td { border-bottom: none; }
 .pill.ok { color: var(--ok); border-color: rgba(62,207,142,.35); }
 .pill.bad { color: var(--bad); border-color: rgba(255,107,122,.35); }
 .pill.warn { color: var(--warn); border-color: rgba(240,180,41,.35); }
+.usage-stack {
+  display: grid;
+  gap: 3px;
+}
+.usage-inline,
+.provider-usage {
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.usage-inline {
+  color: var(--text);
+}
 .actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
 .form-grid { display: grid; gap: 4px; max-width: 640px; }
