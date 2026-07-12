@@ -71,3 +71,17 @@ curl -s http://127.0.0.1:8787/v1/search \
 ```
 
 Point MCP tools / custom agent tools at this single URL for lab-wide search.
+
+## Odysseus integration
+
+Odysseus’s **SearXNG (self-hosted)** provider only sends `GET /search?format=json` and its settings UI has no API-key field. Search Gateway exposes an authenticated SearXNG-compatible endpoint for it.
+
+1. In **API keys**, create a dedicated gateway key for Odysseus.
+2. In Odysseus **Settings → Web Search**, select **SearXNG (self-hosted)** and set the URL to:
+   ```text
+   http://<gateway-key>:@search-gateway:8787/v1
+   ```
+   The trailing `@` makes `<gateway-key>` the HTTP Basic username. Use `search-gateway` only when the Odysseus container shares the `paseo` Docker network; otherwise use the gateway's reachable host/IP.
+3. Click **Test**. The key remains in Basic authentication and is not placed in the request URL query string.
+
+The compatibility endpoint supports SearXNG JSON requests at `/v1/search?format=json`, translates `q`, `count`, and `time_range`, and returns SearXNG-shaped `results`. Native gateway clients should continue using Bearer authentication with `/v1/search`.

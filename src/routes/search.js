@@ -9,6 +9,21 @@ function providerList(value) {
   return String(value).split(",").map((s) => s.trim()).filter(Boolean);
 }
 
+function searxngResults(result) {
+  return {
+    query: result.query,
+    number_of_results: result.results.length,
+    results: result.results.map((item, index) => ({
+      title: item.title,
+      url: item.url,
+      content: item.snippet || "",
+      engine: result.provider,
+      score: result.results.length - index,
+      category: "general",
+    })),
+  };
+}
+
 
 router.post("/search", requireGatewayAuth, async (req, res) => {
   try {
@@ -34,18 +49,19 @@ router.post("/search", requireGatewayAuth, async (req, res) => {
 });
 
 router.get("/search", requireGatewayAuth, async (req, res) => {
+  const searxngFormat = String(req.query.format || "").toLowerCase() === "json";
   try {
     const result = await executeSearch({
       query: req.query.query || req.query.q,
-      limit: req.query.limit ? Number(req.query.limit) : undefined,
-      recency: req.query.recency,
+      limit: Number(req.query.limit || req.query.count) || undefined,
+      recency: req.query.recency || req.query.time_range,
       mode: req.query.mode,
       providers: providerList(req.query.providers),
       ip: req.ip || req.socket?.remoteAddress,
       userAgent: req.get("user-agent"),
       apiKey: req.gatewayKey,
     });
-    res.json(result);
+    res.json(searxngFormat ? searxngResults(result) : result);
   } catch (e) {
     res.status(e.status || 500).json({
       error: e.message || String(e),
