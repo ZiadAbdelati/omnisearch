@@ -587,6 +587,8 @@
     }
   }
 
+  $("close-event-dialog").onclick = () => $("event-dialog").close();
+
   function applySettings(settings) {
     $("set-default-mode").value = settings.default_mode || "auto";
     $("set-default-limit").value = settings.default_limit || 10;

@@ -143,6 +143,7 @@ tr:last-child td { border-bottom: none; }
 .pill.warn { color: var(--warn); border-color: rgba(240,180,41,.35); }
 .usage-stack {
   display: grid;
+  min-width: 220px;
   gap: 3px;
 }
 .usage-inline,
@@ -154,7 +155,12 @@ tr:last-child td { border-bottom: none; }
 .usage-inline {
   color: var(--text);
 }
-.actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  white-space: nowrap;
+}
 
 .form-grid { display: grid; gap: 4px; max-width: 640px; }
 .row, .row-2 { display: flex; gap: 12px; }
