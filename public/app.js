@@ -75,8 +75,18 @@
     setTimeout(() => { toast.remove(); }, 4300);
   }
 
-  async function copyText(text) {
+  async function copyText(text, fallbackTarget) {
     if (!text) throw new Error("No API key to copy");
+
+    if (fallbackTarget) {
+      fallbackTarget.value = text;
+      fallbackTarget.setAttribute("readonly", "");
+      fallbackTarget.focus();
+      fallbackTarget.select();
+      fallbackTarget.setSelectionRange(0, fallbackTarget.value.length);
+      if (document.execCommand("copy")) return;
+    }
+
     if (navigator.clipboard?.writeText && window.isSecureContext) {
       try {
         await navigator.clipboard.writeText(text);
@@ -85,12 +95,15 @@
         // Fall through: browser permission policy can reject clipboard access.
       }
     }
+
     const input = document.createElement("textarea");
     input.value = text;
     input.setAttribute("readonly", "");
-    input.style.cssText = "position:fixed;opacity:0;pointer-events:none";
+    input.style.cssText = "position:fixed;left:-1000px;top:0;width:1px;height:1px;opacity:0";
     document.body.appendChild(input);
+    input.focus();
     input.select();
+    input.setSelectionRange(0, input.value.length);
     const copied = document.execCommand("copy");
     input.remove();
     if (!copied) throw new Error("Browser blocked clipboard access");
@@ -409,8 +422,10 @@
 
   $("run-search-btn").onclick = async () => {
     const gw = $("search-gateway-token").value.trim();
+    const out = $("search-out");
     localStorage.setItem(GW_KEY, gw);
-    $("search-out").textContent = "Running…";
+    out.classList.remove("hidden");
+    out.textContent = "Running…";
     try {
       const res = await fetch("/v1/search", {
         method: "POST",
@@ -425,13 +440,15 @@
         }),
       });
       const data = await res.json();
-      $("search-out").textContent = JSON.stringify(data, null, 2);
+      out.textContent = JSON.stringify(data, null, 2);
     } catch (e) {
-      $("search-out").textContent = String(e);
+      out.textContent = String(e);
     }
   };
 
   let keysCache = [];
+  let currentNewKeyToken = "";
+  let pendingRerollKeyId = "";
   const keyDialog = $("key-dialog");
 
   function providerList(value) {
@@ -444,6 +461,7 @@
   }
 
   function showNewKey(token) {
+    currentNewKeyToken = token;
     $("new-key-token").textContent = token;
     $("search-gateway-token").value = token;
     localStorage.setItem(GW_KEY, token);
@@ -511,11 +529,12 @@
       el.onclick = () => openKeyDialog(keysCache.find((x) => x.id === el.dataset.keyEdit));
     });
     body.querySelectorAll("[data-key-reroll]").forEach((el) => {
-      el.onclick = async () => {
-        if (!confirm("Reroll this key? Existing clients using it will stop working.")) return;
-        const r = await api(`/admin/api/api-keys/${el.dataset.keyReroll}/reroll`, { method: "POST", body: "{}" });
-        showNewKey(r.token);
-        await refreshKeys();
+      el.onclick = () => {
+        const key = keysCache.find((x) => x.id === el.dataset.keyReroll);
+        pendingRerollKeyId = el.dataset.keyReroll;
+        $("reroll-key-name").textContent = key?.name || "this key";
+        $("reroll-key-msg").textContent = "";
+        $("reroll-key-dialog").showModal();
       };
     });
     body.querySelectorAll("[data-key-del]").forEach((el) => {
@@ -545,10 +564,25 @@
   $("add-key-btn").onclick = () => openKeyDialog(null);
   $("cancel-key-dialog").onclick = () => keyDialog.close();
   $("dismiss-new-key-dialog").onclick = () => $("new-key-dialog").close();
-  $("copy-key-btn").onclick = async () => {
-    const key = $("new-key-token").textContent;
+  $("cancel-reroll-key").onclick = () => $("reroll-key-dialog").close();
+  $("confirm-reroll-key").onclick = async () => {
+    if (!pendingRerollKeyId) return;
     try {
-      await copyText(key);
+      $("reroll-key-msg").textContent = "Rerolling…";
+      const r = await api(`/admin/api/api-keys/${pendingRerollKeyId}/reroll`, { method: "POST", body: "{}" });
+      pendingRerollKeyId = "";
+      $("reroll-key-dialog").close();
+      showNewKey(r.token);
+      await refreshKeys();
+    } catch (error) {
+      $("reroll-key-msg").textContent = `Fail: ${error.message}`;
+    }
+  };
+  $("copy-key-btn").onclick = async () => {
+    const tokenEl = $("new-key-token");
+    const key = currentNewKeyToken || tokenEl.textContent;
+    try {
+      await copyText(key, $("copy-key-buffer"));
       showToast("Copied API key", "success");
     } catch (error) {
       showToast(`Could not copy API key: ${error.message}`, "error");

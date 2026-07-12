@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Search Gateway</title>
-  <link rel="stylesheet" href="/styles.css?v=4" />
+  <link rel="stylesheet" href="/styles.css?v=14" />
 </head>
 <body>
   <div id="login-view" class="login-wrap hidden">
@@ -88,7 +88,7 @@
             <button id="run-search-btn" class="primary">Run search</button>
           </div>
         </div>
-        <pre id="search-out" class="code-block"></pre>
+        <pre id="search-out" class="code-block hidden"></pre>
       </section>
 
       <section id="tab-keys" class="tab-panel hidden">
@@ -260,13 +260,27 @@
     </form>
   </dialog>
 
-  <dialog id="new-key-dialog">
-    <div class="card dialog-card key-secret-dialog">
+  <dialog id="reroll-key-dialog" class="key-flow-modal">
+    <div class="card dialog-card key-flow-dialog reroll-key-card">
+      <h3>Reroll API key?</h3>
+      <p class="muted small">Existing clients using this key will stop working. The new key will be shown once.</p>
+      <code id="reroll-key-name" class="reroll-key-name"></code>
+      <div class="dialog-actions key-flow-actions">
+        <button type="button" id="cancel-reroll-key" class="modal-secondary">Cancel</button>
+        <button type="button" id="confirm-reroll-key" class="danger-solid">Reroll key</button>
+      </div>
+      <p id="reroll-key-msg" class="muted"></p>
+    </div>
+  </dialog>
+
+  <dialog id="new-key-dialog" class="key-flow-modal">
+    <div class="card dialog-card key-flow-dialog key-secret-dialog">
       <h3>Copy API key now</h3>
       <p class="muted small">This is the only time the full key will be shown.</p>
       <code id="new-key-token" class="key-secret-token"></code>
-      <div class="dialog-actions">
-        <button type="button" id="dismiss-new-key-dialog" class="ghost">Done</button>
+      <textarea id="copy-key-buffer" class="copy-key-buffer" readonly tabindex="-1" aria-hidden="true"></textarea>
+      <div class="dialog-actions key-flow-actions">
+        <button type="button" id="dismiss-new-key-dialog" class="modal-secondary">Done</button>
         <button type="button" id="copy-key-btn" class="primary">Copy key</button>
       </div>
     </div>
@@ -286,6 +300,6 @@
       <pre id="event-json" class="code-block" style="margin-top: 16px; max-height: 50vh;"></pre>
     </div>
   </dialog>
-  <script src="/app.js?v=13"></script>
+  <script src="/app.js?v=18"></script>
 </body>
 </html>
