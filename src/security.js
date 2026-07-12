@@ -22,8 +22,8 @@ function assertSecureConfig(config) {
   if (!prod) return;
 
   const bad = [];
-  if (!config.secretKey || config.secretKey.length < 32) {
-    bad.push("SECRET_KEY must be at least 32 characters");
+  if (!config.adminToken || config.adminToken.length < 10) {
+    bad.push("ADMIN_TOKEN must be at least 10 characters");
   }
   if (
     /change-me|dev-insecure|dev-local/i.test(config.secretKey) ||
