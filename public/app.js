@@ -45,6 +45,20 @@
       $("login-error").classList.remove("hidden");
     }
   }
+  function showToast(msg, type = "info") {
+    let container = $("toast-container");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "toast-container";
+      container.className = "toast-container";
+      document.body.appendChild(container);
+    }
+    const toast = document.createElement("div");
+    toast.className = `toast ${type}`;
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(() => { toast.remove(); }, 4300);
+  }
 
   let providersMeta = [];
 
@@ -189,9 +203,9 @@
             method: "POST",
             body: "{}",
           });
-          alert(`OK (${r.ms}ms)\n${r.sample?.title || ""}\n${r.sample?.url || ""}`);
+          showToast(`OK (${r.ms}ms): ${r.sample?.title || ""} - ${r.sample?.url || ""}`, "success");
         } catch (e) {
-          alert(`Fail: ${e.message}`);
+          showToast(`Fail: ${e.message}`, "error");
         } finally {
           el.disabled = false;
           el.textContent = "Test";
