@@ -149,17 +149,15 @@ function pickOrderedAccounts({ mode, providersAllow }) {
       if (ma !== mb) return ma - mb;
       const qa = remainingQuotaScore(a);
       const qb = remainingQuotaScore(b);
- *  mode?: string,
- *  providers?: string[],
- *  signal?: AbortSignal,
- *  ip?: string,
- *  userAgent?: string,
- * }} opts
- */
-async function executeSearch(opts) {
+      if (qa !== qb) return qb - qa;
+      // weight: higher weight first with light randomness
+      const wa = (a.weight || 1) * (0.85 + Math.random() * 0.3);
+      const wb = (b.weight || 1) * (0.85 + Math.random() * 0.3);
+      return wb - wa;
+    });
+    ordered.push(...group);
   }
 
-  // cheap mode: searxng first among equals already handled via modeBoost
   return ordered;
 }
 
@@ -197,13 +195,8 @@ function applyFailure(row, err) {
   updateAccount(row.id, patch);
 }
 
-        resultCount: out.results.length,
-        latencyMs: ms,
-        mode,
-        ip: opts.ip,
-        userAgent: opts.userAgent,
-        responseJson: JSON.stringify(out.results),
-      });
+function applySuccess(row) {
+  updateAccount(row.id, {
     lastError: null,
     lastOkAt: new Date().toISOString(),
     cooldownUntil: null,
@@ -225,12 +218,8 @@ function applyFailure(row, err) {
 async function executeSearch(opts) {
   const query = String(opts.query || "").trim();
   if (!query) {
-        latencyMs: ms,
-        error: `${pe.code}: ${pe.message}`,
-        mode,
-        ip: opts.ip,
-        userAgent: opts.userAgent,
-      });
+    const err = new Error("query is required");
+    err.status = 400;
     throw err;
   }
 
@@ -272,10 +261,14 @@ async function executeSearch(opts) {
         accountId: row.id,
         provider: row.provider,
         ok: true,
+        query,
         queryHash: qh,
         resultCount: out.results.length,
         latencyMs: ms,
         mode,
+        ip: opts.ip,
+        userAgent: opts.userAgent,
+        responseJson: JSON.stringify(out.results),
       });
       applySuccess(row);
       attempts.push({

@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const Database = require("better-sqlite3");
 const { v4: uuid } = require("uuid");
+const { config } = require("./config");
 const SCHEMA_VERSION = 2;
 
 /** @type {import('better-sqlite3').Database} */

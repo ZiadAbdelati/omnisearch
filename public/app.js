@@ -381,8 +381,6 @@
   }
   $("refresh-stats").onclick = () => refreshStats();
   $("close-event-dialog").onclick = () => $("event-dialog").close();
-  }
-  $("refresh-stats").onclick = () => refreshStats();
 
   async function loadSettings() {
     const s = await api("/admin/api/settings");
