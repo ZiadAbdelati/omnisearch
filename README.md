@@ -20,8 +20,9 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-- UI: http://127.0.0.1:8787/
-- Search: generate a managed key in **API keys**, then call `/v1/search` with `Authorization: Bearer <managed key>`
+- Admin UI: http://127.0.0.1:8787/
+- Native search: generate a managed key in **API keys**, then call `POST /v1/search` with `Authorization: Bearer <managed key>`.
+- SearXNG JSON compatibility: authenticated `GET /v1/search?format=json&q=...`; supports the Odysseus request contract only.
 
 ## Portainer
 
@@ -74,16 +75,16 @@ Point MCP tools / custom agent tools at this single URL for lab-wide search.
 
 ## Odysseus integration
 
-Odysseus’s **SearXNG (self-hosted)** provider only sends `GET /search?format=json` and its settings UI has no separate API-key field. Search Gateway exposes the subset of the SearXNG JSON API that Odysseus uses.
+Odysseus’s **SearXNG (self-hosted)** provider issues authenticated JSON searches using `/search?format=json`; its settings UI has no separate API-key field. Search Gateway supports the SearXNG JSON subset Odysseus needs.
 
-1. In **API keys**, create a dedicated, least-privilege gateway key for Odysseus.
+1. In **API keys**, create a dedicated, least-privilege gateway key for Odysseus. Restrict its providers and apply a suitable RPM/day/month quota.
 2. In Odysseus **Settings → Web Search**, select **SearXNG (self-hosted)** and set the URL to:
    ```text
    http://<gateway-key>:@search-gateway:8787/v1
    ```
-   The trailing `@` makes `<gateway-key>` the HTTP Basic username. Use `search-gateway` only when the Odysseus container shares the `paseo` Docker network; otherwise use the gateway's reachable host/IP.
-3. Click **Test**. The key is supplied as HTTP Basic authentication, not in a query string.
+   The trailing `@` supplies `<gateway-key>` as the HTTP Basic username with an empty password. Use `search-gateway` only when Odysseus shares the `paseo` Docker network; otherwise use the gateway's reachable host/IP.
+3. Click **Test**. The URL must retain the `/v1` suffix.
 
-Odysseus persists that configured URL in its application settings, and its HTTP client may log the complete request URL including the Basic-auth username. Docker access, Odysseus logs, and an Odysseus application-data backup can therefore expose the embedded key. Treat it as an application secret: use a dedicated key, limit it to the providers and quota Odysseus needs, and reroll it from the gateway UI if the Odysseus host, logs, or backup is exposed.
+Odysseus persists that URL in application settings, and its HTTP client may log the complete URL including the Basic-auth username. Docker access, Odysseus logs, and an Odysseus application-data backup can expose the embedded key. Treat it as an application secret: use a dedicated key, restrict it, and reroll it from the gateway UI if the Odysseus host, logs, or backup is exposed.
 
-This compatibility endpoint supports `GET /v1/search?format=json` plus `q`, `count`, and `time_range`, and returns SearXNG-shaped `results`. It is **not** a drop-in SearXNG implementation: it does not implement SearXNG’s HTML UI, root `/` endpoint, POST form API, CSV/RSS, pagination, arbitrary engines/categories, or SearXNG-specific plugins. Native gateway clients should use Bearer authentication with `POST /v1/search`. 
+The endpoint supports `GET /v1/search?format=json` with `q`, `count`, and `time_range`; it emits SearXNG-shaped `results`. It is **not** a complete SearXNG replacement: no HTML UI, root `/`, form POST, CSV/RSS, pagination, arbitrary engines/categories, or SearXNG plugins. Native clients should use Bearer authentication with `POST /v1/search`.

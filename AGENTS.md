@@ -6,10 +6,9 @@ Self-hosted **multi-provider web search proxy** with admin UI, API-key accounts,
 
 Expose **one lab endpoint** for search used by OMP, Claude, scripts, and other agents:
 
-```text
-POST /v1/search   →  Tavily / Brave / Exa / SearXNG (ordered failover)
+POST /v1/search   →  Native routed search; Bearer or `X-API-Key` managed-key authentication
+GET  /v1/search   →  Native query API; `format=json` returns the Odysseus SearXNG-compatible shape
 GET  /            →  Admin UI (manage accounts, priorities, limits, test keys)
-```
 
 This is **not** an LLM proxy (not OmniRoute). It only aggregates **search APIs** and **SearXNG**.
 
@@ -38,7 +37,7 @@ search-gateway/
     config.js         ← env
     db.js             ← schema + migrations
     crypto.js         ← secret seal/open (AES-GCM)
-    auth.js           ← admin + public bearer auth
+    auth.js           ← admin + managed-key authentication (Bearer, X-API-Key, Basic)
     router.js         ← priority + failover + routing
     providers/
       index.js
@@ -91,7 +90,21 @@ Response:
 }
 ```
 
-Also accepted: `GET /v1/search?q=...&limit=10` with the same bearer token.
+Also accepted: `GET /v1/search?q=...&limit=10` with Bearer, `X-API-Key`, or HTTP Basic managed-key authentication.
+
+### Odysseus SearXNG JSON compatibility
+
+`GET /v1/search?format=json` accepts managed-key authentication through HTTP Basic, Bearer, or `X-API-Key`. It supports the Odysseus request fields `q`, `count`, and `time_range`, and maps them into gateway routing. Its response is SearXNG-shaped:
+
+```json
+{
+  "query": "...",
+  "number_of_results": 1,
+  "results": [{ "title": "...", "url": "https://...", "content": "...", "engine": "brave", "score": 1, "category": "general" }]
+}
+```
+
+This is deliberately a narrow compatibility surface, not a full SearXNG server. Do not claim generic SearXNG drop-in compatibility or add routes/speculative formats without a client contract and tests.
 
 ### Admin API
 
@@ -149,9 +162,11 @@ Multiple accounts **of the same provider** are supported (several Brave keys, et
 
 ## Security
 
-- `SECRET_KEY` seals provider API keys at rest (AES-256-GCM) and keys managed API-token hashes.
+- `SECRET_KEY` seals provider API keys at rest (AES-256-GCM) and stores managed API-token hashes.
 - `ADMIN_TOKEN` protects UI + admin API; managed API keys protect `/v1/search`.
-- Timing-safe bearer compare; no tokens in query strings.
+- Native API callers use Bearer or `X-API-Key`. The SearXNG JSON compatibility route also accepts HTTP Basic for clients such as Odysseus that lack a key field.
+- Basic-auth keys embedded in a client URL can be stored or logged by that client. Require a dedicated, least-privilege, rerollable key; do not put managed keys in query strings.
+- Timing-safe token comparison; no tokens in query strings.
 - CSP / frame deny / nosniff; global per-IP rate limits plus managed-key provider/rate limits.
 - `NODE_ENV=production` or `SG_ENFORCE_SECURE=1` refuses placeholder required secrets.
 - Never log raw secrets. See [SECURITY.md](./SECURITY.md).
@@ -177,11 +192,12 @@ docker compose up -d --build
 
 ## Agent conventions
 
-- Prefer small, boring modules; no framework churn.  
-- Provider adapters: `(account, { query, limit, recency, signal }) → { results[], rawMeta? }` or throw `ProviderError`.  
-- After schema changes, bump `SCHEMA_VERSION` in `db.js` and migrate.  
-- Keep UI dependency-free (vanilla JS/CSS) unless a clear win.  
-- Smoke-test: `npm run smoke` against a running server.  
+- Prefer small, boring modules; no framework churn.
+- Provider adapters: `(account, { query, limit, recency, signal }) → { results[], rawMeta? }` or throw `ProviderError`.
+- After schema changes, bump `SCHEMA_VERSION` in `db.js` and migrate.
+- Keep UI dependency-free (vanilla JS/CSS) unless a clear win.
+- New or rerolled managed keys must be shown only once in `#new-key-dialog`; its copy action must use `navigator.clipboard` with the `execCommand("copy")` fallback.
+- Smoke-test: `npm run smoke` against a running server.
 - Do not commit `data/`, `.env`, or real keys.
 
 ## Integration notes
@@ -192,7 +208,7 @@ docker compose up -d --build
 | OMP | Prefer native Brave/Tavily keys **or** a future thin OMP provider pointing here; until then use MCP/HTTP tools |
 | Paseo agents | Wrap this gateway as MCP or HTTP tool; single upstream URL |
 | SearXNG | Add as `searxng` account with `baseUrl=http://searxng:8080` (compose network) or host IP |
-
+| Odysseus | `SearXNG (self-hosted)` URL: `http://<dedicated-key>:@search-gateway:8787/v1`; client stores/logs URL, so scope and reroll the key |
 ## Non-goals
 
 - LLM chat proxying  
