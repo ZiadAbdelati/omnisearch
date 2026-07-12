@@ -16,7 +16,7 @@ if (
   process.env.SG_ENFORCE_SECURE !== "1"
 ) {
   if (
-    /change-me|dev-insecure|dev-local|admin-dev|gateway-dev/i.test(
+    /change-me|dev-insecure|dev-local|admin-dev-token|gateway-dev-token/i.test(
       config.secretKey + config.adminToken + config.gatewayToken,
     )
   ) {

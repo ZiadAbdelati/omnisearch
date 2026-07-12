@@ -15,7 +15,7 @@ It is **not** hardened as a multi-tenant public SaaS. Deploy behind a private ne
 | Variable | Role | Guidance |
 |---|---|---|
 | `SECRET_KEY` | AES-256-GCM key material for sealing API keys | ≥32 random bytes (e.g. `openssl rand -hex 32`) |
-| `ADMIN_TOKEN` | Admin UI + `/admin/api/*` | ≥16 chars, high entropy, **≠** gateway token |
+| `ADMIN_TOKEN` | Admin UI + `/admin/api/*` | ≥10 chars (can be a password), **≠** gateway token |
 | `GATEWAY_API_TOKEN` | `/v1/search` clients | ≥16 chars, high entropy |
 
 With `NODE_ENV=production` or `SG_ENFORCE_SECURE=1`, the process **refuses to start** if tokens look like placeholders or are too short.

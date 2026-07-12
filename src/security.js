@@ -31,17 +31,18 @@ function assertSecureConfig(config) {
   ) {
     bad.push("SECRET_KEY looks like a placeholder");
   }
-  if (!config.adminToken || config.adminToken.length < 16) {
-    bad.push("ADMIN_TOKEN must be at least 16 characters");
+  if (!config.adminToken || config.adminToken.length < 10) {
+    bad.push("ADMIN_TOKEN must be at least 10 characters");
   }
   if (!config.gatewayToken || config.gatewayToken.length < 16) {
     bad.push("GATEWAY_API_TOKEN must be at least 16 characters");
   }
-  if (
-    /change-me|admin-dev|gateway-dev/i.test(config.adminToken) ||
-    /change-me|admin-dev|gateway-dev/i.test(config.gatewayToken)
-  ) {
-    bad.push("ADMIN_TOKEN / GATEWAY_API_TOKEN look like placeholders");
+  // Only reject obvious template placeholders, not user-chosen short passwords
+  if (/^(change-me|admin-dev-token|gateway-dev-token)$/i.test(config.adminToken)) {
+    bad.push("ADMIN_TOKEN looks like a placeholder");
+  }
+  if (/^(change-me|change-me-gateway-token|gateway-dev-token)$/i.test(config.gatewayToken)) {
+    bad.push("GATEWAY_API_TOKEN looks like a placeholder");
   }
   if (config.adminToken === config.gatewayToken) {
     bad.push("ADMIN_TOKEN and GATEWAY_API_TOKEN must differ");
