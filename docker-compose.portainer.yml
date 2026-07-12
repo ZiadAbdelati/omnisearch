@@ -1,0 +1,30 @@
+# Portainer-friendly stack fragment / standalone service.
+# Prerequisite: image already built on the host:
+#   docker build -t search-gateway:latest /path/to/search-gateway
+#
+# Portainer "build: ." often returns HTTP 500 because web editors have no
+# build context (Dockerfile + source). Prefer a pre-built local image.
+
+services:
+  search-gateway:
+    image: search-gateway:latest
+    container_name: search-gateway
+    ports:
+      - "8787:8787"
+    environment:
+      SECRET_KEY: ${SECRET_KEY}
+      ADMIN_TOKEN: ${ADMIN_TOKEN}
+      GATEWAY_API_TOKEN: ${GATEWAY_API_TOKEN}
+      HOST: "0.0.0.0"
+      PORT: "8787"
+      DATABASE_PATH: /data/gateway.db
+      DEFAULT_SEARXNG_URL: ${DEFAULT_SEARXNG_URL:-http://searxng:8080}
+    volumes:
+      - /opt/search-gateway/data:/data
+    restart: unless-stopped
+    networks:
+      - paseo
+
+networks:
+  paseo:
+    external: true

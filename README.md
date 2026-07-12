@@ -23,6 +23,19 @@ docker compose up -d --build
 - UI: http://127.0.0.1:8787/  
 - Search: `POST /v1/search` with `Authorization: Bearer $GATEWAY_API_TOKEN`
 
+## Portainer
+
+Portainer stack editor **`build: .` often fails with HTTP 500** — there is no build context (source tree) when you only paste YAML.
+
+1. On the Docker host, build once:
+   ```bash
+   cd /root/workspace/search-gateway   # or /opt/search-gateway/src-tree
+   docker build -t search-gateway:latest .
+   mkdir -p /opt/search-gateway/data
+   ```
+2. In the stack, use **`image: search-gateway:latest`** (see `docker-compose.portainer.yml`), not `build: .`.
+3. Put the service on the same external network as SearXNG (e.g. `paseo`) and set `DEFAULT_SEARXNG_URL=http://searxng:8080`.
+
 ## Quick start (Node)
 
 ```bash
