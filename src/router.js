@@ -14,10 +14,39 @@ const { getProvider, ProviderError } = require("./providers");
 
 const MODE_PREFERENCE = {
   auto: [],
-  balanced: ["tavily", "brave", "exa", "searxng"],
-  fresh: ["brave", "tavily", "searxng", "exa"],
-  semantic: ["exa", "tavily", "brave", "searxng"],
-  cheap: ["searxng", "brave", "tavily", "exa"],
+  balanced: [
+    "tavily",
+    "brave",
+    "kagi",
+    "jina",
+    "exa",
+    "parallel",
+    "serpapi",
+    "bing",
+    "google_pse",
+    "firecrawl",
+    "searxng",
+  ],
+  fresh: [
+    "brave",
+    "tavily",
+    "bing",
+    "serpapi",
+    "kagi",
+    "searxng",
+    "exa",
+  ],
+  semantic: ["exa", "parallel", "tavily", "jina", "kagi", "brave", "searxng"],
+  cheap: [
+    "searxng",
+    "brave",
+    "jina",
+    "tavily",
+    "serpapi",
+    "bing",
+    "google_pse",
+    "exa",
+  ],
 };
 
 function startOfUtcDay() {

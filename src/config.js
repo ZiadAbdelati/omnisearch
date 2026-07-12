@@ -35,7 +35,19 @@ const config = {
   databasePath:
     process.env.DATABASE_PATH || path.join(root, "data", "gateway.db"),
   defaultSearxngUrl: process.env.DEFAULT_SEARXNG_URL || "",
-  providers: ["brave", "tavily", "exa", "searxng"],
+  providers: [
+    "brave",
+    "tavily",
+    "exa",
+    "searxng",
+    "jina",
+    "kagi",
+    "firecrawl",
+    "serpapi",
+    "bing",
+    "google_pse",
+    "parallel",
+  ],
   modes: ["auto", "balanced", "fresh", "semantic", "cheap"],
 };
 

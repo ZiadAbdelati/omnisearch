@@ -6,16 +6,24 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY package.json ./
-RUN npm install --omit=dev
+COPY package.json package-lock.json* ./
+RUN npm install --omit=dev && npm cache clean --force
 
 COPY src ./src
 COPY public ./public
-COPY AGENTS.md ./
+COPY AGENTS.md SECURITY.md LICENSE README.md ./
 
-ENV HOST=0.0.0.0
-ENV PORT=8787
-ENV DATABASE_PATH=/data/gateway.db
+ENV HOST=0.0.0.0 \
+    PORT=8787 \
+    DATABASE_PATH=/data/gateway.db \
+    NODE_ENV=production \
+    SG_ENFORCE_SECURE=1
+
+RUN mkdir -p /data
+
+# Note: process runs as root by default so host bind-mounts (e.g. /opt/.../data)
+# are writable without host chown. For stricter setups, chown the data dir to
+# uid 1000 and set USER node, or use a named volume.
 
 EXPOSE 8787
 VOLUME ["/data"]

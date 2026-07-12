@@ -46,11 +46,16 @@
     }
   }
 
+  let providersMeta = [];
+
   async function boot() {
     if (!token()) return showLogin();
     try {
       const h = await api("/admin/api/health");
       $("health-line").textContent = `providers: ${h.providers.join(", ")}`;
+      const meta = await api("/admin/api/meta");
+      providersMeta = meta.providers || [];
+      fillProviderSelect();
       showApp();
       await refreshAccounts();
       await loadSettings();
@@ -59,6 +64,22 @@
       sessionStorage.removeItem(TOKEN_KEY);
       showLogin(e.message || "Auth failed");
     }
+  }
+
+  function fillProviderSelect() {
+    const sel = $("acc-provider");
+    sel.innerHTML = "";
+    for (const p of providersMeta) {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = p.label ? `${p.label} (${p.id})` : p.id;
+      sel.appendChild(opt);
+    }
+    sel.onchange = () => {
+      const p = providersMeta.find((x) => x.id === sel.value);
+      $("provider-hint").textContent = p?.secretHint || "";
+      $("secret-label").style.opacity = p && p.needsSecret === false ? "0.7" : "1";
+    };
   }
 
   $("login-btn").onclick = async () => {

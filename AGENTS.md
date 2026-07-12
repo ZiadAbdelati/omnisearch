@@ -67,8 +67,8 @@ Content-Type: application/json
 {
   "query": "string",
   "limit": 10,
-  "recency": "day|week|month|year",   // optional
-  "providers": ["tavily","brave"],      // optional allow-list
+  "recency": "day|week|month|year",
+  "providers": ["tavily","brave"],
   "mode": "auto|balanced|fresh|semantic|cheap"
 }
 ```
@@ -114,9 +114,9 @@ All under `/admin/api/*`, header `Authorization: Bearer <ADMIN_TOKEN>` (or cooki
 
 | Field | Meaning |
 |---|---|
-| `provider` | `brave` \| `tavily` \| `exa` \| `searxng` |
+| `provider` | `brave` `tavily` `exa` `searxng` `jina` `kagi` `firecrawl` `serpapi` `bing` `google_pse` `parallel` |
 | `name` | Human label |
-| `secret` | API key (encrypted at rest); unused for searxng |
+| `secret` | API key (encrypted at rest); optional for searxng |
 | `baseUrl` | Override endpoint (SearXNG base, custom proxies) |
 | `priority` | Lower number = tried first (within routing) |
 | `enabled` | Soft disable |
@@ -149,13 +149,13 @@ Multiple accounts **of the same provider** are supported (several Brave keys, et
 
 ## Security
 
-- `SECRET_KEY` seals API keys at rest (AES-256-GCM).  
-- `ADMIN_TOKEN` protects UI + admin API.  
-- `GATEWAY_API_TOKEN` protects `/v1/search` (agents use this).  
-- Never log raw secrets or full upstream keys.  
-- Bind to LAN / reverse proxy in production; default compose publishes `8787`.
-
-## Local dev
+- `SECRET_KEY` seals API keys at rest (AES-256-GCM).
+- `ADMIN_TOKEN` protects UI + admin API; `GATEWAY_API_TOKEN` protects `/v1/search`.
+- Timing-safe bearer compare; no tokens in query strings.
+- CSP / frame deny / nosniff; rate limits; JSON body cap.
+- `NODE_ENV=production` or `SG_ENFORCE_SECURE=1` refuses placeholder secrets.
+- Never log raw secrets. See [SECURITY.md](./SECURITY.md).
+- Bind to LAN / reverse proxy with TLS for real deployments.
 
 ```bash
 cp .env.example .env

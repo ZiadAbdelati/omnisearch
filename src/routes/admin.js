@@ -129,17 +129,25 @@ router.post("/accounts/:id/test", async (req, res) => {
       secret,
       baseUrl: row.base_url,
     });
-    updateAccount(row.id, {
-      lastOkAt: new Date().toISOString(),
-      lastError: null,
-      cooldownUntil: null,
-    });
+    try {
+      updateAccount(row.id, {
+        lastOkAt: new Date().toISOString(),
+        lastError: null,
+        cooldownUntil: null,
+      });
+    } catch (dbErr) {
+      console.error("[warn] updateAccount after test:", dbErr.message);
+    }
     res.json(result);
   } catch (e) {
     const msg = e.message || String(e);
-    const row = getAccount(req.params.id);
-    if (row) updateAccount(row.id, { lastError: msg });
-    res.status(e instanceof ProviderError && e.status ? e.status : 400).json({
+    try {
+      const row = getAccount(req.params.id);
+      if (row) updateAccount(row.id, { lastError: msg });
+    } catch {
+      /* ignore db write failures */
+    }
+    res.status(400).json({
       ok: false,
       error: msg,
       code: e.code,
@@ -191,16 +199,16 @@ router.put("/settings", (req, res) => {
   }
   res.json({ settings: listSettings() });
 });
-
 router.get("/meta", (_req, res) => {
   res.json({
     providers: Object.entries(PROVIDERS).map(([id, p]) => ({
       id,
+      label: p.label || id,
       needsSecret: p.needsSecret,
+      secretHint: p.secretHint || null,
     })),
     modes: config.modes,
     defaultMode: getSetting("default_mode", "auto"),
   });
 });
-
 module.exports = router;

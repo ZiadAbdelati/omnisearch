@@ -1,7 +1,7 @@
 {
   "name": "search-gateway",
   "version": "1.0.0",
-  "description": "Self-hosted multi-provider web search gateway with admin UI, quotas, and failover",
+  "description": "Self-hosted multi-provider web search gateway (Brave, Tavily, Exa, Kagi, Jina, \u2026) with admin UI, quotas, failover",
   "main": "src/index.js",
   "type": "commonjs",
   "scripts": {
@@ -17,5 +17,9 @@
     "better-sqlite3": "^11.8.1",
     "express": "^4.21.2",
     "uuid": "^11.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example/search-gateway"
   }
 }

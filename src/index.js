@@ -1,6 +1,30 @@
 const { config } = require("./config");
 const { initDb } = require("./db");
 const { createApp } = require("./app");
+const { assertSecureConfig } = require("./security");
+
+try {
+  assertSecureConfig(config);
+} catch (e) {
+  console.error(e.message || e);
+  process.exit(1);
+}
+
+// Soft warning in non-production
+if (
+  process.env.NODE_ENV !== "production" &&
+  process.env.SG_ENFORCE_SECURE !== "1"
+) {
+  if (
+    /change-me|dev-insecure|dev-local|admin-dev|gateway-dev/i.test(
+      config.secretKey + config.adminToken + config.gatewayToken,
+    )
+  ) {
+    console.warn(
+      "[warn] Using development/placeholder secrets. Set strong SECRET_KEY, ADMIN_TOKEN, GATEWAY_API_TOKEN before any network exposure.",
+    );
+  }
+}
 
 initDb();
 const app = createApp();
@@ -14,10 +38,11 @@ const server = app.listen(config.port, config.host, () => {
   console.log(`  health:    GET  /healthz`);
 });
 
-function shutdown() {
+function shutdown(signal) {
+  console.log(`shutting down (${signal})`);
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(1), 5000).unref();
 }
 
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
