@@ -9,6 +9,7 @@ function providerList(value) {
   return String(value).split(",").map((s) => s.trim()).filter(Boolean);
 }
 
+
 function searxngResults(result) {
   return {
     query: result.query,
@@ -69,5 +70,6 @@ router.get("/search", requireGatewayAuth, async (req, res) => {
     });
   }
 });
+
 
 module.exports = router;

@@ -162,6 +162,20 @@ tr:last-child td { border-bottom: none; }
   white-space: nowrap;
 }
 .account-meta { white-space: nowrap; }
+.key-secret-dialog { width: min(640px, 100%); }
+.key-secret-token {
+  display: block;
+  overflow-wrap: anywhere;
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #0a1018;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.45;
+  user-select: all;
+}
 
 .form-grid { display: grid; gap: 4px; max-width: 640px; }
 .row, .row-2 { display: flex; gap: 12px; }

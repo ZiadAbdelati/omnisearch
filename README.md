@@ -74,14 +74,16 @@ Point MCP tools / custom agent tools at this single URL for lab-wide search.
 
 ## Odysseus integration
 
-Odysseus’s **SearXNG (self-hosted)** provider only sends `GET /search?format=json` and its settings UI has no API-key field. Search Gateway exposes an authenticated SearXNG-compatible endpoint for it.
+Odysseus’s **SearXNG (self-hosted)** provider only sends `GET /search?format=json` and its settings UI has no separate API-key field. Search Gateway exposes the subset of the SearXNG JSON API that Odysseus uses.
 
-1. In **API keys**, create a dedicated gateway key for Odysseus.
+1. In **API keys**, create a dedicated, least-privilege gateway key for Odysseus.
 2. In Odysseus **Settings → Web Search**, select **SearXNG (self-hosted)** and set the URL to:
    ```text
    http://<gateway-key>:@search-gateway:8787/v1
    ```
    The trailing `@` makes `<gateway-key>` the HTTP Basic username. Use `search-gateway` only when the Odysseus container shares the `paseo` Docker network; otherwise use the gateway's reachable host/IP.
-3. Click **Test**. The key remains in Basic authentication and is not placed in the request URL query string.
+3. Click **Test**. The key is supplied as HTTP Basic authentication, not in a query string.
 
-The compatibility endpoint supports SearXNG JSON requests at `/v1/search?format=json`, translates `q`, `count`, and `time_range`, and returns SearXNG-shaped `results`. Native gateway clients should continue using Bearer authentication with `/v1/search`.
+Odysseus persists that configured URL in its application settings, so Docker access and an Odysseus application-data backup can expose the embedded key. Treat it as an application secret: use a dedicated key, limit it to the providers and quota Odysseus needs, and reroll it from the gateway UI if the Odysseus host or backup is exposed.
+
+This compatibility endpoint supports `GET /v1/search?format=json` plus `q`, `count`, and `time_range`, and returns SearXNG-shaped `results`. It is **not** a drop-in SearXNG implementation: it does not implement SearXNG’s HTML UI, root `/` endpoint, POST form API, CSV/RSS, pagination, arbitrary engines/categories, or SearXNG-specific plugins. Native gateway clients should use Bearer authentication with `POST /v1/search`. 

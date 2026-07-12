@@ -97,11 +97,6 @@
           <button id="add-key-btn" class="primary">Generate key</button>
         </div>
         <p class="muted small">Keys authenticate /v1/search clients. New or rerolled secrets are shown once.</p>
-        <div id="new-key-card" class="card hidden key-card">
-          <strong>Copy this key now:</strong>
-          <code id="new-key-token"></code>
-          <button id="copy-key-btn" class="ghost" type="button">Copy</button>
-        </div>
         <div class="table-wrap">
           <table>
             <thead>
@@ -265,6 +260,18 @@
     </form>
   </dialog>
 
+  <dialog id="new-key-dialog">
+    <div class="card dialog-card key-secret-dialog">
+      <h3>Copy API key now</h3>
+      <p class="muted small">This is the only time the full key will be shown.</p>
+      <code id="new-key-token" class="key-secret-token"></code>
+      <div class="dialog-actions">
+        <button type="button" id="dismiss-new-key-dialog" class="ghost">Done</button>
+        <button type="button" id="copy-key-btn" class="primary">Copy key</button>
+      </div>
+    </div>
+  </dialog>
+
   <dialog id="event-dialog">
     <div class="card dialog-card" style="width: min(800px, 100vw); max-width: 100%;">
       <div class="panel-head">
@@ -279,6 +286,6 @@
       <pre id="event-json" class="code-block" style="margin-top: 16px; max-height: 50vh;"></pre>
     </div>
   </dialog>
-  <script src="/app.js?v=11"></script>
+  <script src="/app.js?v=13"></script>
 </body>
 </html>

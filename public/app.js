@@ -75,6 +75,27 @@
     setTimeout(() => { toast.remove(); }, 4300);
   }
 
+  async function copyText(text) {
+    if (!text) throw new Error("No API key to copy");
+    if (navigator.clipboard?.writeText && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return;
+      } catch {
+        // Fall through: browser permission policy can reject clipboard access.
+      }
+    }
+    const input = document.createElement("textarea");
+    input.value = text;
+    input.setAttribute("readonly", "");
+    input.style.cssText = "position:fixed;opacity:0;pointer-events:none";
+    document.body.appendChild(input);
+    input.select();
+    const copied = document.execCommand("copy");
+    input.remove();
+    if (!copied) throw new Error("Browser blocked clipboard access");
+  }
+
   let providersMeta = [];
 
   async function boot() {
@@ -423,10 +444,10 @@
   }
 
   function showNewKey(token) {
-    $("new-key-card").classList.remove("hidden");
     $("new-key-token").textContent = token;
     $("search-gateway-token").value = token;
     localStorage.setItem(GW_KEY, token);
+    $("new-key-dialog").showModal();
   }
 
   function keyPayload() {
@@ -523,9 +544,15 @@
 
   $("add-key-btn").onclick = () => openKeyDialog(null);
   $("cancel-key-dialog").onclick = () => keyDialog.close();
+  $("dismiss-new-key-dialog").onclick = () => $("new-key-dialog").close();
   $("copy-key-btn").onclick = async () => {
-    await navigator.clipboard.writeText($("new-key-token").textContent);
-    showToast("Copied API key", "success");
+    const key = $("new-key-token").textContent;
+    try {
+      await copyText(key);
+      showToast("Copied API key", "success");
+    } catch (error) {
+      showToast(`Could not copy API key: ${error.message}`, "error");
+    }
   };
   $("key-form").onsubmit = async (e) => {
     e.preventDefault();
