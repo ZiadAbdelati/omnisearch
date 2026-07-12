@@ -1,4 +1,5 @@
 const { config } = require("./config");
+const { getApiKeyByToken } = require("./db");
 const { timingSafeEqualStr } = require("./security");
 
 function extractBearer(req) {
@@ -11,9 +12,11 @@ function extractBearer(req) {
 
 function requireGatewayAuth(req, res, next) {
   const token = extractBearer(req);
-  if (!token || !timingSafeEqualStr(token, config.gatewayToken)) {
-    return res.status(401).json({ error: "Unauthorized (gateway token)" });
+  const key = getApiKeyByToken(token);
+  if (!key) {
+    return res.status(401).json({ error: "Unauthorized (gateway API key)" });
   }
+  req.gatewayKey = key;
   next();
 }
 

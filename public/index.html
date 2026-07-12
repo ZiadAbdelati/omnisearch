@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Search Gateway</title>
-  <link rel="stylesheet" href="/styles.css?v=3" />
+  <link rel="stylesheet" href="/styles.css?v=4" />
 </head>
 <body>
   <div id="login-view" class="login-wrap">
@@ -30,6 +30,7 @@
       <nav class="tabs">
         <button data-tab="accounts" class="tab active">Accounts</button>
         <button data-tab="search" class="tab">Test search</button>
+        <button data-tab="keys" class="tab">API keys</button>
         <button data-tab="stats" class="tab">Usage</button>
         <button data-tab="settings" class="tab">Settings</button>
       </nav>
@@ -79,14 +80,43 @@
               <option value="cheap">cheap</option>
             </select>
           </label>
-          <label>Gateway API token (for /v1/search)
-            <input id="search-gateway-token" type="password" placeholder="GATEWAY_API_TOKEN" />
+          <label>Managed API key (for /v1/search)
+            <input id="search-gateway-token" type="password" placeholder="sgk_…" />
           </label>
           <div class="row">
             <button id="run-search-btn" class="primary">Run search</button>
           </div>
         </div>
         <pre id="search-out" class="code-block"></pre>
+      </section>
+
+      <section id="tab-keys" class="tab-panel hidden">
+        <div class="panel-head">
+          <h2>API keys</h2>
+          <button id="add-key-btn" class="primary">Generate key</button>
+        </div>
+        <p class="muted small">Keys authenticate /v1/search clients. New or rerolled secrets are shown once.</p>
+        <div id="new-key-card" class="card hidden key-card">
+          <strong>Copy this key now:</strong>
+          <code id="new-key-token"></code>
+          <button id="copy-key-btn" class="ghost" type="button">Copy</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Enabled</th>
+                <th>Name</th>
+                <th>Key</th>
+                <th>Allowed providers</th>
+                <th>Limits</th>
+                <th>Last used</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="keys-body"></tbody>
+          </table>
+        </div>
       </section>
 
       <section id="tab-stats" class="tab-panel hidden">
@@ -194,6 +224,46 @@
     </form>
   </dialog>
 
+  <dialog id="key-dialog">
+    <form method="dialog" id="key-form" class="card dialog-card">
+      <h3 id="key-dialog-title">Generate API key</h3>
+      <input type="hidden" id="key-id" />
+      <label>Name
+        <input id="key-name" required placeholder="omp-search" />
+      </label>
+      <label>Allowed providers <span class="muted small">comma-separated, blank = any</span>
+        <input id="key-providers" placeholder="tavily,brave,searxng" />
+      </label>
+      <div class="row-2">
+        <label>RPM limit
+          <input id="key-rpm" type="number" min="1" placeholder="∞" />
+        </label>
+        <label>Daily limit
+          <input id="key-daily" type="number" min="1" placeholder="∞" />
+        </label>
+      </div>
+      <div class="row-2">
+        <label>Monthly limit
+          <input id="key-monthly" type="number" min="1" placeholder="∞" />
+        </label>
+        <label>Max results
+          <input id="key-max-results" type="number" min="1" placeholder="global max" />
+        </label>
+      </div>
+      <label>Notes
+        <input id="key-notes" />
+      </label>
+      <label class="check">
+        <input id="key-enabled" type="checkbox" checked /> Enabled
+      </label>
+      <div class="dialog-actions">
+        <button type="button" id="cancel-key-dialog" class="ghost">Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+      <p id="key-dialog-msg" class="muted"></p>
+    </form>
+  </dialog>
+
   <dialog id="event-dialog">
     <div class="card dialog-card" style="width: min(800px, 100vw); max-width: 100%;">
       <div class="panel-head">
@@ -208,6 +278,6 @@
       <pre id="event-json" class="code-block" style="margin-top: 16px; max-height: 50vh;"></pre>
     </div>
   </dialog>
-  <script src="/app.js?v=3"></script>
+  <script src="/app.js?v=4"></script>
 </body>
 </html>

@@ -21,7 +21,7 @@ if (
     )
   ) {
     console.warn(
-      "[warn] Using development/placeholder secrets. Set strong SECRET_KEY, ADMIN_TOKEN, GATEWAY_API_TOKEN before any network exposure.",
+      "[warn] Using development/placeholder secrets. Set strong SECRET_KEY and ADMIN_TOKEN before any network exposure.",
     );
   }
 }

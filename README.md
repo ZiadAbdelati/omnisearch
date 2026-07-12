@@ -16,12 +16,12 @@ See [AGENTS.md](./AGENTS.md) for architecture and agent conventions.
 ```bash
 cd search-gateway
 cp .env.example .env
-# edit SECRET_KEY, ADMIN_TOKEN, GATEWAY_API_TOKEN
+# edit SECRET_KEY and ADMIN_TOKEN
 docker compose up -d --build
 ```
 
-- UI: http://127.0.0.1:8787/  
-- Search: `POST /v1/search` with `Authorization: Bearer $GATEWAY_API_TOKEN`
+- UI: http://127.0.0.1:8787/
+- Search: generate a managed key in **API keys**, then call `/v1/search` with `Authorization: Bearer <managed key>`
 
 ## Portainer
 
@@ -59,9 +59,11 @@ Lower **priority** is tried first. Use **Test** before saving if you want.
 
 ## Agent usage
 
+Generate a key in **API keys** first. Use per-key provider allowlists and RPM/day/month limits for clients.
+
 ```bash
 curl -s http://127.0.0.1:8787/v1/search \
-  -H "Authorization: Bearer $GATEWAY_API_TOKEN" \
+  -H "Authorization: Bearer $SEARCH_GATEWAY_KEY" \
   -H "Content-Type: application/json" \
   -d '{"query":"example domain","limit":5,"mode":"auto"}'
 ```

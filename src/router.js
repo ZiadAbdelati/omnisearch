@@ -8,6 +8,8 @@ const {
   countRpm,
   getSetting,
   accountFromRow,
+  countApiKeyUsage,
+  recordApiKeyUsage,
 } = require("./db");
 const { open } = require("./crypto");
 const { getProvider, ProviderError } = require("./providers");
@@ -203,6 +205,48 @@ function applySuccess(row) {
   });
 }
 
+function startOfUtcDayIso() {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  return d.toISOString();
+}
+
+function startOfUtcMonthIso() {
+  const d = new Date();
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)).toISOString();
+}
+
+function requireApiKeyQuota(apiKey) {
+  if (!apiKey) return;
+  const checks = [
+    [apiKey.rpmLimit, new Date(Date.now() - 60_000).toISOString(), "per-minute"],
+    [apiKey.dailyLimit, startOfUtcDayIso(), "daily"],
+    [apiKey.monthlyLimit, startOfUtcMonthIso(), "monthly"],
+  ];
+  for (const [limit, since, label] of checks) {
+    if (limit != null && countApiKeyUsage(apiKey.id, since) >= limit) {
+      recordApiKeyUsage({ apiKeyId: apiKey.id, ok: false });
+      const err = new Error(`API key ${label} limit exceeded`);
+      err.status = 429;
+      throw err;
+    }
+  }
+}
+
+function effectiveProviders(requested, apiKey) {
+  const req = Array.isArray(requested) && requested.length ? requested.map(String) : null;
+  const allowed = apiKey?.allowedProviders || [];
+  if (!allowed.length) return req;
+  if (!req) return allowed;
+  const denied = req.filter((p) => !allowed.includes(p));
+  if (denied.length) {
+    const err = new Error(`API key is not allowed to use provider(s): ${denied.join(", ")}`);
+    err.status = 403;
+    throw err;
+  }
+  return req;
+}
+
 /**
  * @param {{
  *  query: string,
@@ -213,6 +257,7 @@ function applySuccess(row) {
  *  signal?: AbortSignal,
  *  ip?: string,
  *  userAgent?: string,
+ *  apiKey?: { id: string, allowedProviders?: string[], rpmLimit?: number, dailyLimit?: number, monthlyLimit?: number, maxResults?: number },
  * }} opts
  */
 async function executeSearch(opts) {
@@ -223,17 +268,17 @@ async function executeSearch(opts) {
     throw err;
   }
 
+  requireApiKeyQuota(opts.apiKey);
   const maxLimit = Number(getSetting("max_limit", "20")) || 20;
+  const keyMaxLimit = opts.apiKey?.maxResults ?? maxLimit;
   const defaultLimit = Number(getSetting("default_limit", "10")) || 10;
   const limit = Math.min(
     Math.max(Number(opts.limit) || defaultLimit, 1),
     maxLimit,
+    keyMaxLimit,
   );
   const mode = opts.mode || getSetting("default_mode", "auto") || "auto";
-  const providersAllow =
-    Array.isArray(opts.providers) && opts.providers.length
-      ? opts.providers
-      : null;
+  const providersAllow = effectiveProviders(opts.providers, opts.apiKey);
 
   const candidates = pickOrderedAccounts({ mode, providersAllow });
   if (!candidates.length) {
@@ -271,6 +316,7 @@ async function executeSearch(opts) {
         responseJson: JSON.stringify(out.results),
       });
       applySuccess(row);
+      recordApiKeyUsage({ apiKeyId: opts.apiKey?.id, ok: true });
       attempts.push({
         accountId: row.id,
         accountName: row.name,
@@ -321,6 +367,7 @@ async function executeSearch(opts) {
     }
   }
 
+  recordApiKeyUsage({ apiKeyId: opts.apiKey?.id, ok: false });
   const err = new Error(
     `All search providers failed: ${attempts
       .map((a) => `${a.provider}/${a.error}`)

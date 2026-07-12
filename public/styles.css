@@ -170,6 +170,21 @@ tr:last-child td { border-bottom: none; }
 }
 .stat .n { font-size: 28px; font-weight: 700; }
 .stat .l { color: var(--muted); font-size: 12px; }
+.key-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.key-card code {
+  overflow: auto;
+  white-space: nowrap;
+  background: #0a1018;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
 
 dialog {
   border: none;

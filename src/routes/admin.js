@@ -13,6 +13,12 @@ const {
   listSettings,
   setSetting,
   getSetting,
+  listApiKeys,
+  getApiKey,
+  insertApiKey,
+  updateApiKey,
+  rerollApiKey,
+  deleteApiKey,
 } = require("../db");
 const { testAccountConfig } = require("../router");
 const { PROVIDERS, ProviderError } = require("../providers");
@@ -33,6 +39,26 @@ function publicAccount(row) {
   return a;
 }
 
+
+function keyPatch(body = {}) {
+  return {
+    name: body.name,
+    enabled: body.enabled,
+    allowedProviders: body.allowedProviders,
+    rpmLimit: body.rpmLimit,
+    dailyLimit: body.dailyLimit,
+    monthlyLimit: body.monthlyLimit,
+    maxResults: body.maxResults,
+    notes: body.notes,
+  };
+}
+
+function validateProviders(providers) {
+  if (providers === undefined) return null;
+  if (!Array.isArray(providers)) return "allowedProviders must be an array";
+  const bad = providers.filter((p) => !PROVIDERS[p]);
+  return bad.length ? `Invalid provider(s): ${bad.join(", ")}` : null;
+}
 router.get("/health", (_req, res) => {
   res.json({
     ok: true,
@@ -172,6 +198,51 @@ router.post("/accounts/test", async (req, res) => {
       code: e.code,
     });
   }
+});
+
+router.get("/api-keys", (_req, res) => {
+  res.json({ keys: listApiKeys() });
+});
+
+router.post("/api-keys", (req, res) => {
+  try {
+    const b = req.body || {};
+    if (!b.name) return res.status(400).json({ error: "name required" });
+    const providerError = validateProviders(b.allowedProviders);
+    if (providerError) return res.status(400).json({ error: providerError });
+    const result = insertApiKey(keyPatch(b));
+    res.status(201).json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message || String(e) });
+  }
+});
+
+router.patch("/api-keys/:id", (req, res) => {
+  try {
+    if (!getApiKey(req.params.id)) return res.status(404).json({ error: "Not found" });
+    const providerError = validateProviders(req.body?.allowedProviders);
+    if (providerError) return res.status(400).json({ error: providerError });
+    const key = updateApiKey(req.params.id, keyPatch(req.body || {}));
+    res.json({ key });
+  } catch (e) {
+    res.status(500).json({ error: e.message || String(e) });
+  }
+});
+
+router.post("/api-keys/:id/reroll", (req, res) => {
+  try {
+    const result = rerollApiKey(req.params.id);
+    if (!result) return res.status(404).json({ error: "Not found" });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: e.message || String(e) });
+  }
+});
+
+router.delete("/api-keys/:id", (req, res) => {
+  const ok = deleteApiKey(req.params.id);
+  if (!ok) return res.status(404).json({ error: "Not found" });
+  res.json({ ok: true });
 });
 
 router.get("/stats", (_req, res) => {

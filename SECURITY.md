@@ -15,10 +15,11 @@ It is **not** hardened as a multi-tenant public SaaS. Deploy behind a private ne
 | Variable | Role | Guidance |
 |---|---|---|
 | `SECRET_KEY` | AES-256-GCM key material for sealing API keys | ≥32 random bytes |
-| `ADMIN_TOKEN` | Admin UI + `/admin/api/*` | ≥10 chars (acts as password), **≠** gateway token |
-| `GATEWAY_API_TOKEN` | `/v1/search` clients | ≥16 chars, high entropy |
+| `ADMIN_TOKEN` | Admin UI + `/admin/api/*` | ≥10 chars (acts as password) |
+| Managed API keys | `/v1/search` clients | Generate in Admin UI → API keys; set provider/rate limits per client |
+| `GATEWAY_API_TOKEN` | Optional legacy seed | If present during migration, imported once as a managed key |
 
-With `NODE_ENV=production` or `SG_ENFORCE_SECURE=1`, the process **refuses to start** if tokens look like placeholders or are too short.
+With `NODE_ENV=production` or `SG_ENFORCE_SECURE=1`, the process **refuses to start** if required secrets look like placeholders or are too short.
 
 ## What we implement
 
@@ -34,13 +35,13 @@ With `NODE_ENV=production` or `SG_ENFORCE_SECURE=1`, the process **refuses to st
 
 ## Deploy checklist
 
-1. Generate unique `SECRET_KEY`, `ADMIN_TOKEN`, `GATEWAY_API_TOKEN` per environment.  
-2. Set `NODE_ENV=production` (Docker image default).  
-3. Bind to private interface or put behind reverse proxy with TLS.  
-4. Prefer `TRUST_PROXY=1` only when behind a trusted reverse proxy.  
-5. Restrict firewall: only LAN/VPN to `:8787`.  
-6. Back up `/data/gateway.db` as sensitive (contains encrypted keys + usage).  
-7. Rotate tokens by redeploying env; re-enter provider API keys if you change `SECRET_KEY` (old seals become undecryptable).  
+1. Generate unique `SECRET_KEY` and `ADMIN_TOKEN` per environment.
+2. Generate `/v1/search` client keys in Admin UI → API keys; apply provider allowlists and rate limits.
+3. Set `NODE_ENV=production` (Docker image default).
+4. Bind to private interface or put behind reverse proxy with TLS.
+5. Prefer `TRUST_PROXY=1` only when behind a trusted reverse proxy.
+6. Restrict firewall: only LAN/VPN to `:8787`.
+7. Back up `/data/gateway.db` as sensitive (contains encrypted provider keys, managed key hashes, and usage).
 8. Do not commit `.env` or `data/`.
 
 ## Changing SECRET_KEY

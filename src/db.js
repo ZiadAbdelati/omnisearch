@@ -1,9 +1,11 @@
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const Database = require("better-sqlite3");
 const { v4: uuid } = require("uuid");
 const { config } = require("./config");
-const SCHEMA_VERSION = 2;
+const { seal } = require("./crypto");
+const SCHEMA_VERSION = 3;
 
 /** @type {import('better-sqlite3').Database} */
 let db;
@@ -85,9 +87,64 @@ function initDb() {
     try { db.exec("ALTER TABLE usage_events ADD COLUMN user_agent TEXT"); } catch {}
     try { db.exec("ALTER TABLE usage_events ADD COLUMN response_json TEXT"); } catch {}
     db.exec("UPDATE meta SET value = '2' WHERE key = 'schema_version'");
+    currentVersion = 2;
+  }
+  ensureApiKeyTables();
+  if (currentVersion < 3) {
+    seedEnvGatewayKey();
+    db.exec("UPDATE meta SET value = '3' WHERE key = 'schema_version'");
   }
   seedDefaults();
   return db;
+}
+
+function ensureApiKeyTables() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS api_keys (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      token_hash TEXT NOT NULL UNIQUE,
+      token_preview TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      allowed_providers TEXT NOT NULL DEFAULT '[]',
+      rpm_limit INTEGER,
+      daily_limit INTEGER,
+      monthly_limit INTEGER,
+      max_results INTEGER,
+      notes TEXT,
+      last_used_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS api_key_usage (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      api_key_id TEXT NOT NULL,
+      ok INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_api_keys_hash
+      ON api_keys(token_hash);
+    CREATE INDEX IF NOT EXISTS idx_api_key_usage_key_created
+      ON api_key_usage(api_key_id, created_at);
+  `);
+}
+
+function seedEnvGatewayKey() {
+  if (!config.gatewayToken || config.gatewayToken.length < 16) return;
+  if (/^(change-me|change-me-gateway-token|gateway-dev-token)$/i.test(config.gatewayToken)) return;
+  const count = db.prepare("SELECT COUNT(*) AS c FROM api_keys").get().c;
+  if (count > 0) return;
+  insertApiKey(
+    {
+      name: "Default gateway key",
+      enabled: true,
+      notes: "Seeded from GATEWAY_API_TOKEN during migration.",
+    },
+    config.gatewayToken,
+  );
 }
 
 function seedDefaults() {
@@ -148,6 +205,162 @@ function listSettings() {
   const out = {};
   for (const r of rows) out[r.key] = r.value;
   return out;
+}
+
+function normalizeProviderList(value) {
+  if (typeof value === "string") {
+    value = value.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  return Array.isArray(value) ? [...new Set(value.map(String).filter(Boolean))] : [];
+}
+
+function normalizeOptionalNumber(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
+}
+
+function hashApiToken(token) {
+  return crypto.createHmac("sha256", config.secretKey).update(String(token)).digest("hex");
+}
+
+function generateApiToken() {
+  return `sgk_${crypto.randomBytes(32).toString("base64url")}`;
+}
+
+function tokenPreview(token) {
+  const s = String(token);
+  return `${s.slice(0, 6)}…${s.slice(-6)}`;
+}
+
+function apiKeyFromRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    tokenPreview: row.token_preview,
+    enabled: !!row.enabled,
+    allowedProviders: safeJsonArray(row.allowed_providers),
+    rpmLimit: row.rpm_limit,
+    dailyLimit: row.daily_limit,
+    monthlyLimit: row.monthly_limit,
+    maxResults: row.max_results,
+    notes: row.notes,
+    lastUsedAt: row.last_used_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function listApiKeys() {
+  return getDb()
+    .prepare("SELECT * FROM api_keys ORDER BY created_at DESC")
+    .all()
+    .map(apiKeyFromRow);
+}
+
+function getApiKey(id) {
+  const row = getDb().prepare("SELECT * FROM api_keys WHERE id = ?").get(id);
+  return apiKeyFromRow(row);
+}
+
+function getApiKeyByToken(token) {
+  if (!token) return null;
+  const row = getDb()
+    .prepare("SELECT * FROM api_keys WHERE token_hash = ? AND enabled = 1")
+    .get(hashApiToken(token));
+  return apiKeyFromRow(row);
+}
+
+function insertApiKey(input, explicitToken = null) {
+  const now = new Date().toISOString();
+  const id = uuid();
+  const token = explicitToken || generateApiToken();
+  getDb()
+    .prepare(
+      `INSERT INTO api_keys (
+        id, name, token_hash, token_preview, enabled, allowed_providers,
+        rpm_limit, daily_limit, monthly_limit, max_results, notes,
+        last_used_at, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?)`,
+    )
+    .run(
+      id,
+      input.name || "Gateway key",
+      hashApiToken(token),
+      tokenPreview(token),
+      input.enabled === false ? 0 : 1,
+      JSON.stringify(normalizeProviderList(input.allowedProviders)),
+      normalizeOptionalNumber(input.rpmLimit),
+      normalizeOptionalNumber(input.dailyLimit),
+      normalizeOptionalNumber(input.monthlyLimit),
+      normalizeOptionalNumber(input.maxResults),
+      input.notes || null,
+      now,
+      now,
+    );
+  return { key: getApiKey(id), token };
+}
+
+function updateApiKey(id, patch) {
+  const row = getDb().prepare("SELECT * FROM api_keys WHERE id = ?").get(id);
+  if (!row) return null;
+  const now = new Date().toISOString();
+  getDb()
+    .prepare(
+      `UPDATE api_keys SET
+        name = ?, enabled = ?, allowed_providers = ?, rpm_limit = ?,
+        daily_limit = ?, monthly_limit = ?, max_results = ?, notes = ?, updated_at = ?
+       WHERE id = ?`,
+    )
+    .run(
+      patch.name ?? row.name,
+      patch.enabled === undefined ? row.enabled : patch.enabled ? 1 : 0,
+      patch.allowedProviders === undefined
+        ? row.allowed_providers
+        : JSON.stringify(normalizeProviderList(patch.allowedProviders)),
+      patch.rpmLimit === undefined ? row.rpm_limit : normalizeOptionalNumber(patch.rpmLimit),
+      patch.dailyLimit === undefined ? row.daily_limit : normalizeOptionalNumber(patch.dailyLimit),
+      patch.monthlyLimit === undefined ? row.monthly_limit : normalizeOptionalNumber(patch.monthlyLimit),
+      patch.maxResults === undefined ? row.max_results : normalizeOptionalNumber(patch.maxResults),
+      patch.notes === undefined ? row.notes : patch.notes || null,
+      now,
+      id,
+    );
+  return getApiKey(id);
+}
+
+function rerollApiKey(id) {
+  const row = getDb().prepare("SELECT * FROM api_keys WHERE id = ?").get(id);
+  if (!row) return null;
+  const token = generateApiToken();
+  getDb()
+    .prepare("UPDATE api_keys SET token_hash = ?, token_preview = ?, updated_at = ? WHERE id = ?")
+    .run(hashApiToken(token), tokenPreview(token), new Date().toISOString(), id);
+  return { key: getApiKey(id), token };
+}
+
+function deleteApiKey(id) {
+  const info = getDb().prepare("DELETE FROM api_keys WHERE id = ?").run(id);
+  return info.changes > 0;
+}
+
+function countApiKeyUsage(apiKeyId, sinceIso) {
+  const row = getDb()
+    .prepare("SELECT COUNT(*) AS c FROM api_key_usage WHERE api_key_id = ? AND created_at >= ?")
+    .get(apiKeyId, sinceIso);
+  return row.c;
+}
+
+function recordApiKeyUsage({ apiKeyId, ok }) {
+  if (!apiKeyId) return;
+  const now = new Date().toISOString();
+  getDb()
+    .prepare("INSERT INTO api_key_usage (api_key_id, ok, created_at) VALUES (?, ?, ?)")
+    .run(apiKeyId, ok ? 1 : 0, now);
+  getDb()
+    .prepare("UPDATE api_keys SET last_used_at = ?, updated_at = ? WHERE id = ?")
+    .run(now, now, apiKeyId);
 }
 
 function accountFromRow(row, { includeSecret = false, openedSecret = null } = {}) {
@@ -416,6 +629,15 @@ module.exports = {
   getSetting,
   setSetting,
   listSettings,
+  listApiKeys,
+  getApiKey,
+  getApiKeyByToken,
+  insertApiKey,
+  updateApiKey,
+  rerollApiKey,
+  deleteApiKey,
+  countApiKeyUsage,
+  recordApiKeyUsage,
   listAccounts,
   getAccount,
   insertAccount,

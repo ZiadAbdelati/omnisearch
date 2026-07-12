@@ -7,7 +7,6 @@ services:
     environment:
       SECRET_KEY: ${SECRET_KEY:-change-me-to-a-long-random-string}
       ADMIN_TOKEN: ${ADMIN_TOKEN:-change-me-admin-token}
-      GATEWAY_API_TOKEN: ${GATEWAY_API_TOKEN:-change-me-gateway-token}
       HOST: "0.0.0.0"
       PORT: "8787"
       DATABASE_PATH: /data/gateway.db

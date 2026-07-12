@@ -1,6 +1,7 @@
 (() => {
   const TOKEN_KEY = "sg_admin_token";
   const GW_KEY = "sg_gateway_token";
+  const TAB_KEY = "sg_active_tab";
 
   const $ = (id) => document.getElementById(id);
   const loginView = $("login-view");
@@ -74,6 +75,7 @@
       await refreshAccounts();
       await loadSettings();
       $("search-gateway-token").value = localStorage.getItem(GW_KEY) || "";
+      setActiveTab(localStorage.getItem(TAB_KEY) || "accounts");
     } catch (e) {
       sessionStorage.removeItem(TOKEN_KEY);
       showLogin(e.message || "Auth failed");
@@ -110,14 +112,18 @@
     showLogin();
   };
 
+  function setActiveTab(tab) {
+    if (!$(`tab-${tab}`)) tab = "accounts";
+    localStorage.setItem(TAB_KEY, tab);
+    document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+    document.querySelectorAll(".tab-panel").forEach((p) => p.classList.add("hidden"));
+    $(`tab-${tab}`).classList.remove("hidden");
+    if (tab === "stats") refreshStats();
+    if (tab === "keys") refreshKeys();
+  }
+
   document.querySelectorAll(".tab").forEach((btn) => {
-    btn.onclick = () => {
-      document.querySelectorAll(".tab").forEach((b) => b.classList.remove("active"));
-      btn.classList.add("active");
-      document.querySelectorAll(".tab-panel").forEach((p) => p.classList.add("hidden"));
-      $(`tab-${btn.dataset.tab}`).classList.remove("hidden");
-      if (btn.dataset.tab === "stats") refreshStats();
-    };
+    btn.onclick = () => setActiveTab(btn.dataset.tab);
   });
 
   function fmtLimits(a) {
@@ -340,6 +346,138 @@
       $("search-out").textContent = JSON.stringify(data, null, 2);
     } catch (e) {
       $("search-out").textContent = String(e);
+    }
+  };
+
+  let keysCache = [];
+  const keyDialog = $("key-dialog");
+
+  function providerList(value) {
+    return String(value || "").split(",").map((s) => s.trim()).filter(Boolean);
+  }
+
+  function optionalNumber(id) {
+    const v = $(id).value;
+    return v === "" ? null : Number(v);
+  }
+
+  function showNewKey(token) {
+    $("new-key-card").classList.remove("hidden");
+    $("new-key-token").textContent = token;
+    $("search-gateway-token").value = token;
+    localStorage.setItem(GW_KEY, token);
+  }
+
+  function keyPayload() {
+    return {
+      name: $("key-name").value.trim(),
+      allowedProviders: providerList($("key-providers").value),
+      rpmLimit: optionalNumber("key-rpm"),
+      dailyLimit: optionalNumber("key-daily"),
+      monthlyLimit: optionalNumber("key-monthly"),
+      maxResults: optionalNumber("key-max-results"),
+      notes: $("key-notes").value.trim() || null,
+      enabled: $("key-enabled").checked,
+    };
+  }
+
+  function fmtKeyLimits(k) {
+    const parts = [];
+    if (k.rpmLimit != null) parts.push(`rpm:${k.rpmLimit}`);
+    if (k.dailyLimit != null) parts.push(`d:${k.dailyLimit}`);
+    if (k.monthlyLimit != null) parts.push(`m:${k.monthlyLimit}`);
+    if (k.maxResults != null) parts.push(`max:${k.maxResults}`);
+    return parts.join(" ") || "∞";
+  }
+
+  async function refreshKeys() {
+    const data = await api("/admin/api/api-keys");
+    keysCache = data.keys || [];
+    const body = $("keys-body");
+    body.innerHTML = "";
+    for (const k of keysCache) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><input type="checkbox" data-key-toggle="${k.id}" ${k.enabled ? "checked" : ""} /></td>
+        <td><strong>${escapeHtml(k.name)}</strong><div class="muted small">${escapeHtml(k.notes || "")}</div></td>
+        <td><code>${escapeHtml(k.tokenPreview)}</code></td>
+        <td class="muted small">${(k.allowedProviders || []).length ? escapeHtml(k.allowedProviders.join(", ")) : "any"}</td>
+        <td class="muted small">${fmtKeyLimits(k)}</td>
+        <td class="muted small">${escapeHtml(k.lastUsedAt || "never")}</td>
+        <td class="actions">
+          <button data-key-edit="${k.id}" class="ghost">Edit</button>
+          <button data-key-reroll="${k.id}" class="ghost">Reroll</button>
+          <button data-key-del="${k.id}" class="danger">Delete</button>
+        </td>`;
+      body.appendChild(tr);
+    }
+
+    body.querySelectorAll("[data-key-toggle]").forEach((el) => {
+      el.onchange = async () => {
+        await api(`/admin/api/api-keys/${el.dataset.keyToggle}`, {
+          method: "PATCH",
+          body: JSON.stringify({ enabled: el.checked }),
+        });
+        await refreshKeys();
+      };
+    });
+    body.querySelectorAll("[data-key-edit]").forEach((el) => {
+      el.onclick = () => openKeyDialog(keysCache.find((x) => x.id === el.dataset.keyEdit));
+    });
+    body.querySelectorAll("[data-key-reroll]").forEach((el) => {
+      el.onclick = async () => {
+        if (!confirm("Reroll this key? Existing clients using it will stop working.")) return;
+        const r = await api(`/admin/api/api-keys/${el.dataset.keyReroll}/reroll`, { method: "POST", body: "{}" });
+        showNewKey(r.token);
+        await refreshKeys();
+      };
+    });
+    body.querySelectorAll("[data-key-del]").forEach((el) => {
+      el.onclick = async () => {
+        if (!confirm("Delete this API key?")) return;
+        await api(`/admin/api/api-keys/${el.dataset.keyDel}`, { method: "DELETE" });
+        await refreshKeys();
+      };
+    });
+  }
+
+  function openKeyDialog(key) {
+    $("key-dialog-title").textContent = key ? "Edit API key" : "Generate API key";
+    $("key-id").value = key?.id || "";
+    $("key-name").value = key?.name || "";
+    $("key-providers").value = (key?.allowedProviders || []).join(",");
+    $("key-rpm").value = key?.rpmLimit ?? "";
+    $("key-daily").value = key?.dailyLimit ?? "";
+    $("key-monthly").value = key?.monthlyLimit ?? "";
+    $("key-max-results").value = key?.maxResults ?? "";
+    $("key-notes").value = key?.notes || "";
+    $("key-enabled").checked = key?.enabled !== false;
+    $("key-dialog-msg").textContent = "";
+    keyDialog.showModal();
+  }
+
+  $("add-key-btn").onclick = () => openKeyDialog(null);
+  $("cancel-key-dialog").onclick = () => keyDialog.close();
+  $("copy-key-btn").onclick = async () => {
+    await navigator.clipboard.writeText($("new-key-token").textContent);
+    showToast("Copied API key", "success");
+  };
+  $("key-form").onsubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const id = $("key-id").value;
+      const payload = keyPayload();
+      if (!payload.name) throw new Error("name required");
+      if (id) {
+        await api(`/admin/api/api-keys/${id}`, { method: "PATCH", body: JSON.stringify(payload) });
+      } else {
+        const r = await api("/admin/api/api-keys", { method: "POST", body: JSON.stringify(payload) });
+        showNewKey(r.token);
+      }
+      keyDialog.close();
+      await refreshKeys();
+    } catch (err) {
+      $("key-dialog-msg").textContent = err.message;
     }
   };
 

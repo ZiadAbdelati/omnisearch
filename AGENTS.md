@@ -61,7 +61,7 @@ search-gateway/
 
 ```http
 POST /v1/search
-Authorization: Bearer <GATEWAY_API_TOKEN>
+Authorization: Bearer <MANAGED_SEARCH_KEY>
 Content-Type: application/json
 
 {
@@ -149,11 +149,11 @@ Multiple accounts **of the same provider** are supported (several Brave keys, et
 
 ## Security
 
-- `SECRET_KEY` seals API keys at rest (AES-256-GCM).
-- `ADMIN_TOKEN` protects UI + admin API; `GATEWAY_API_TOKEN` protects `/v1/search`.
+- `SECRET_KEY` seals provider API keys at rest (AES-256-GCM) and keys managed API-token hashes.
+- `ADMIN_TOKEN` protects UI + admin API; managed API keys protect `/v1/search`.
 - Timing-safe bearer compare; no tokens in query strings.
-- CSP / frame deny / nosniff; rate limits; JSON body cap.
-- `NODE_ENV=production` or `SG_ENFORCE_SECURE=1` refuses placeholder secrets.
+- CSP / frame deny / nosniff; global per-IP rate limits plus managed-key provider/rate limits.
+- `NODE_ENV=production` or `SG_ENFORCE_SECURE=1` refuses placeholder required secrets.
 - Never log raw secrets. See [SECURITY.md](./SECURITY.md).
 - Bind to LAN / reverse proxy with TLS for real deployments.
 
@@ -162,7 +162,7 @@ cp .env.example .env
 npm install
 npm start
 # UI http://127.0.0.1:8787/
-# Search: curl -H "Authorization: Bearer $GATEWAY_API_TOKEN" \
+# Search: curl -H "Authorization: Bearer $SEARCH_GATEWAY_KEY" \
 #   -H 'Content-Type: application/json' \
 #   -d '{"query":"example domain","limit":3}' \
 #   http://127.0.0.1:8787/v1/search
@@ -188,7 +188,7 @@ docker compose up -d --build
 
 | Client | How |
 |---|---|
-| curl / scripts | `POST /v1/search` + `GATEWAY_API_TOKEN` |
+| curl / scripts | `POST /v1/search` + managed API key from Admin UI → API keys |
 | OMP | Prefer native Brave/Tavily keys **or** a future thin OMP provider pointing here; until then use MCP/HTTP tools |
 | Paseo agents | Wrap this gateway as MCP or HTTP tool; single upstream URL |
 | SearXNG | Add as `searxng` account with `baseUrl=http://searxng:8080` (compose network) or host IP |

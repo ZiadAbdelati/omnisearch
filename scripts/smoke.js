@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 const base = process.env.SMOKE_BASE || "http://127.0.0.1:8787";
 const admin = process.env.ADMIN_TOKEN || "change-me-admin-token";
-const gw = process.env.GATEWAY_API_TOKEN || "change-me-gateway-token";
+let gw = process.env.GATEWAY_API_TOKEN || "";
 
 async function main() {
   const h = await fetch(`${base}/healthz`);
@@ -12,6 +12,23 @@ async function main() {
     headers: { Authorization: `Bearer ${admin}` },
   }).then((r) => r.json());
   console.log("accounts", accounts.accounts?.length);
+
+  const keyList = await fetch(`${base}/admin/api/api-keys`, {
+    headers: { Authorization: `Bearer ${admin}` },
+  }).then((r) => r.json());
+  console.log("api keys", keyList.keys?.length);
+  if (!gw) {
+    const created = await fetch(`${base}/admin/api/api-keys`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${admin}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name: "smoke-test", allowedProviders: ["searxng", "brave", "tavily"], rpmLimit: 30 }),
+    }).then((r) => r.json());
+    gw = created.token;
+    console.log("api key created", created.key?.tokenPreview);
+  }
 
   // Prefer searxng if present
   const searx = (accounts.accounts || []).find((a) => a.provider === "searxng");

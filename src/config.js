@@ -31,7 +31,7 @@ const config = {
   port: Number(process.env.PORT || 8787),
   secretKey: process.env.SECRET_KEY || "dev-insecure-secret-key-change-me",
   adminToken: process.env.ADMIN_TOKEN || "admin-dev-token",
-  gatewayToken: process.env.GATEWAY_API_TOKEN || "gateway-dev-token",
+  gatewayToken: process.env.GATEWAY_API_TOKEN || "",
   databasePath:
     process.env.DATABASE_PATH || path.join(root, "data", "gateway.db"),
   defaultSearxngUrl: process.env.DEFAULT_SEARXNG_URL || "",
