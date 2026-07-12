@@ -4,6 +4,7 @@ const {
   getAccount,
   updateAccount,
   recordUsage,
+  recordProviderQuota,
   countUsage,
   countRpm,
   getSetting,
@@ -315,6 +316,13 @@ async function executeSearch(opts) {
         userAgent: opts.userAgent,
         responseJson: JSON.stringify(out.results),
       });
+      if (out.rawMeta?.providerQuota) {
+        recordProviderQuota({
+          accountId: row.id,
+          provider: row.provider,
+          quota: out.rawMeta.providerQuota,
+        });
+      }
       applySuccess(row);
       recordApiKeyUsage({ apiKeyId: opts.apiKey?.id, ok: true });
       attempts.push({

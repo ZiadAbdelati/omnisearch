@@ -1,3 +1,5 @@
+const { getProviderQuota } = require("./db");
+
 function withTimeout(ms) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
@@ -74,10 +76,35 @@ async function serpapiUsage(account) {
   };
 }
 
+function braveUsage(account) {
+  const saved = getProviderQuota(account.id, "brave");
+  if (!saved) {
+    return {
+      available: false,
+      error: "Quota appears after the first successful Brave search",
+    };
+  }
+  const quota = saved.quota;
+  const observed = new Date(saved.observedAt);
+  const resetAt = Number.isFinite(observed.getTime()) && quota.resetSeconds != null
+    ? new Date(observed.getTime() + quota.resetSeconds * 1000).toISOString()
+    : null;
+  return {
+    available: true,
+    label: quota.unlimited
+      ? "unlimited monthly quota"
+      : quota.used != null && quota.limit != null
+        ? `${quota.used}/${quota.limit} searches`
+        : "quota reported",
+    raw: { ...quota, observedAt: saved.observedAt, resetAt },
+  };
+}
+
 async function upstreamUsage(account) {
   if (!account?.secret) return { available: false, error: "No provider key" };
   if (account.provider === "tavily") return tavilyUsage(account);
   if (account.provider === "serpapi") return serpapiUsage(account);
+  if (account.provider === "brave") return braveUsage(account);
   return { available: false, error: "No usage API integration" };
 }
 

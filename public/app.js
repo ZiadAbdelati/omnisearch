@@ -156,7 +156,7 @@
   }
 
   function supportsProviderUsage(a) {
-    return a.hasSecret && ["tavily", "serpapi"].includes(a.provider);
+    return a.hasSecret && ["brave", "tavily", "serpapi"].includes(a.provider);
   }
 
 

@@ -17,6 +17,47 @@ function resolveUrl(baseUrl) {
   return `${b}/res/v1/web/search`;
 }
 
+function headerNumbers(headers, name) {
+  const value = headers.get(name);
+  if (!value) return [];
+  return value.split(",").map((part) => {
+    const n = Number(part.trim());
+    return Number.isFinite(n) && n >= 0 ? n : null;
+  });
+}
+
+function ratePolicies(headers) {
+  const value = headers.get("x-ratelimit-policy");
+  if (!value) return [];
+  return value.split(",").map((part) => {
+    const match = part.trim().match(/^(\d+)\s*;\s*w=(\d+)$/i);
+    return match ? { limit: Number(match[1]), windowSeconds: Number(match[2]) } : null;
+  });
+}
+
+function braveQuotaFromHeaders(headers) {
+  const policies = ratePolicies(headers);
+  const limits = headerNumbers(headers, "x-ratelimit-limit");
+  const remaining = headerNumbers(headers, "x-ratelimit-remaining");
+  const resets = headerNumbers(headers, "x-ratelimit-reset");
+  const index = policies.reduce(
+    (best, policy, i) =>
+      policy && policy.windowSeconds > (policies[best]?.windowSeconds || 0) ? i : best,
+    -1,
+  );
+  if (index < 0 || policies[index].windowSeconds < 86_400) return null;
+  if (limits[index] == null || remaining[index] == null) return null;
+  const limit = limits[index];
+  return {
+    windowSeconds: policies[index].windowSeconds,
+    limit: limit || null,
+    remaining: limit ? Math.min(remaining[index], limit) : null,
+    used: limit ? Math.max(0, limit - remaining[index]) : null,
+    resetSeconds: resets[index] ?? null,
+    unlimited: limit === 0,
+  };
+}
+
 /**
  * @param {{ secret: string|null, baseUrl?: string|null }} account
  * @param {{ query: string, limit: number, recency?: string, signal?: AbortSignal }} params
@@ -87,7 +128,10 @@ async function searchBrave(account, params) {
   if (!results.length) {
     throw new ProviderError("empty", "Brave returned no results");
   }
-  return { results, rawMeta: { provider: "brave" } };
+  return {
+    results,
+    rawMeta: { provider: "brave", providerQuota: braveQuotaFromHeaders(res.headers) },
+  };
 }
 
 async function testBrave(account) {
@@ -95,7 +139,7 @@ async function testBrave(account) {
     query: "example domain",
     limit: 1,
   });
-  return { ok: true, sample: out.results[0] };
+  return { ok: true, sample: out.results[0], providerQuota: out.rawMeta.providerQuota };
 }
 
-module.exports = { searchBrave, testBrave };
+module.exports = { searchBrave, testBrave, braveQuotaFromHeaders };

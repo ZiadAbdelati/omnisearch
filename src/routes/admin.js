@@ -10,6 +10,7 @@ const {
   deleteAccount,
   accountFromRow,
   usageStats,
+  recordProviderQuota,
   accountUsageStats,
   listSettings,
   setSetting,
@@ -184,6 +185,13 @@ router.post("/accounts/:id/test", async (req, res) => {
       secret,
       baseUrl: row.base_url,
     });
+    if (result.providerQuota) {
+      recordProviderQuota({
+        accountId: row.id,
+        provider: row.provider,
+        quota: result.providerQuota,
+      });
+    }
     try {
       updateAccount(row.id, {
         lastOkAt: new Date().toISOString(),

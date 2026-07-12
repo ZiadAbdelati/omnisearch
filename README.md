@@ -57,7 +57,7 @@ In the UI (**Accounts → Add**):
 
 Lower **priority** is tried first. Use **Test** before saving if you want.
 
-The Accounts table shows gateway usage inline as `rpm`, `d` (today), and `m` (month). If the provider exposes a usage endpoint, provider-side quota/credit usage is loaded inline too; currently Tavily and SerpAPI expose API-readable usage in this gateway.
+The Accounts table shows gateway usage inline as `rpm`, `d` (today), and `m` (month). Provider-side quota/credit usage is available for Tavily and SerpAPI. Brave quota is captured from rate-limit headers on every successful Brave search or account test; it reports the plan's longest quota window without issuing a separate upstream usage request.
 
 ## Agent usage
 

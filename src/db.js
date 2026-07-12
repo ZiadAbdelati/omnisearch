@@ -5,7 +5,7 @@ const Database = require("better-sqlite3");
 const { v4: uuid } = require("uuid");
 const { config } = require("./config");
 const { seal } = require("./crypto");
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 /** @type {import('better-sqlite3').Database} */
 let db;
@@ -93,6 +93,11 @@ function initDb() {
   if (currentVersion < 3) {
     seedEnvGatewayKey();
     db.exec("UPDATE meta SET value = '3' WHERE key = 'schema_version'");
+    currentVersion = 3;
+  }
+  ensureProviderQuotaTable();
+  if (currentVersion < 4) {
+    db.exec("UPDATE meta SET value = '4' WHERE key = 'schema_version'");
   }
   seedDefaults();
   return db;
@@ -129,6 +134,17 @@ function ensureApiKeyTables() {
       ON api_keys(token_hash);
     CREATE INDEX IF NOT EXISTS idx_api_key_usage_key_created
       ON api_key_usage(api_key_id, created_at);
+  `);
+}
+function ensureProviderQuotaTable() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS provider_quotas (
+      account_id TEXT PRIMARY KEY,
+      provider TEXT NOT NULL,
+      quota_json TEXT NOT NULL,
+      observed_at TEXT NOT NULL,
+      FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+    );
   `);
 }
 
@@ -551,6 +567,32 @@ function recordUsage({
     );
 }
 
+function recordProviderQuota({ accountId, provider, quota }) {
+  if (!accountId || !provider || !quota) return;
+  getDb()
+    .prepare(
+      `INSERT INTO provider_quotas (account_id, provider, quota_json, observed_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(account_id) DO UPDATE SET
+         provider = excluded.provider,
+         quota_json = excluded.quota_json,
+         observed_at = excluded.observed_at`,
+    )
+    .run(accountId, provider, JSON.stringify(quota), new Date().toISOString());
+}
+
+function getProviderQuota(accountId, provider) {
+  const row = getDb()
+    .prepare("SELECT quota_json, observed_at FROM provider_quotas WHERE account_id = ? AND provider = ?")
+    .get(accountId, provider);
+  if (!row) return null;
+  try {
+    return { quota: JSON.parse(row.quota_json), observedAt: row.observed_at };
+  } catch {
+    return null;
+  }
+}
+
 function countUsage(accountId, sinceIso, okOnly = true) {
   const row = getDb()
     .prepare(
@@ -654,6 +696,8 @@ module.exports = {
   deleteAccount,
   accountFromRow,
   recordUsage,
+  recordProviderQuota,
+  getProviderQuota,
   countUsage,
   countRpm,
   accountUsageStats,
