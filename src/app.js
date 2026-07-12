@@ -48,6 +48,7 @@ function createApp() {
       windowMs: 60_000,
       max: Number(process.env.RATE_LIMIT_ADMIN_RPM || 120),
       bucket: () => "admin",
+      skip: (req) => req.method === "GET" && req.path === "/bootstrap",
     }),
     adminRoutes,
   );

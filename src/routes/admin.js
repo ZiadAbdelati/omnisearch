@@ -56,6 +56,15 @@ function keyPatch(body = {}) {
   };
 }
 
+function providerMeta() {
+  return Object.entries(PROVIDERS).map(([id, p]) => ({
+    id,
+    label: p.label || id,
+    needsSecret: p.needsSecret,
+    secretHint: p.secretHint || null,
+  }));
+}
+
 function validateProviders(providers) {
   if (providers === undefined) return null;
   if (!Array.isArray(providers)) return "allowedProviders must be an array";
@@ -68,6 +77,23 @@ router.get("/health", (_req, res) => {
     providers: Object.keys(PROVIDERS),
     modes: config.modes,
   });
+});
+
+router.get("/bootstrap", (req, res) => {
+  const tab = String(req.query.tab || "accounts");
+  const rows = listAccounts().map((a) => getAccount(a.id));
+  const payload = {
+    ok: true,
+    providers: Object.keys(PROVIDERS),
+    providerMeta: providerMeta(),
+    modes: config.modes,
+    defaultMode: getSetting("default_mode", "auto"),
+    settings: listSettings(),
+    accounts: rows.map(publicAccount),
+  };
+  if (tab === "keys") payload.keys = listApiKeys();
+  if (tab === "stats") payload.stats = usageStats();
+  res.json(payload);
 });
 
 router.get("/accounts", (_req, res) => {
@@ -298,12 +324,7 @@ router.put("/settings", (req, res) => {
 });
 router.get("/meta", (_req, res) => {
   res.json({
-    providers: Object.entries(PROVIDERS).map(([id, p]) => ({
-      id,
-      label: p.label || id,
-      needsSecret: p.needsSecret,
-      secretHint: p.secretHint || null,
-    })),
+    providers: providerMeta(),
     modes: config.modes,
     defaultMode: getSetting("default_mode", "auto"),
   });

@@ -6,6 +6,12 @@
   const $ = (id) => document.getElementById(id);
   const loginView = $("login-view");
   const app = $("app");
+  const initialToken = token();
+  if (initialToken) {
+    const tab = normalizeTab(localStorage.getItem(TAB_KEY) || "accounts");
+    setActiveTab(tab, { load: false });
+    showApp();
+  }
 
   function token() {
     return sessionStorage.getItem(TOKEN_KEY) || "";
@@ -38,13 +44,21 @@
     loginView.classList.add("hidden");
     app.classList.remove("hidden");
   }
+
   function showLogin(msg) {
     app.classList.add("hidden");
     loginView.classList.remove("hidden");
     if (msg) {
       $("login-error").textContent = msg;
       $("login-error").classList.remove("hidden");
+    } else {
+      $("login-error").textContent = "";
+      $("login-error").classList.add("hidden");
     }
+  }
+
+  function normalizeTab(tab) {
+    return $(`tab-${tab}`) ? tab : "accounts";
   }
   function showToast(msg, type = "info") {
     let container = $("toast-container");
@@ -65,19 +79,21 @@
 
   async function boot() {
     if (!token()) return showLogin();
+    const tab = normalizeTab(localStorage.getItem(TAB_KEY) || "accounts");
     try {
-      const h = await api("/admin/api/health");
-      $("health-line").textContent = `providers: ${h.providers.join(", ")}`;
-      const meta = await api("/admin/api/meta");
-      providersMeta = meta.providers || [];
+      setActiveTab(tab, { load: false });
+      const data = await api(`/admin/api/bootstrap?tab=${encodeURIComponent(tab)}`);
+      $("health-line").textContent = `providers: ${data.providers.join(", ")}`;
+      providersMeta = data.providerMeta || [];
       fillProviderSelect();
-      setActiveTab(localStorage.getItem(TAB_KEY) || "accounts");
-      showApp();
-      await refreshAccounts();
-      await loadSettings();
+      renderAccounts(data.accounts || []);
+      applySettings(data.settings || {});
+      if (data.keys) renderKeys(data.keys);
+      if (data.stats) renderStats(data.stats);
       $("search-gateway-token").value = localStorage.getItem(GW_KEY) || "";
+      showApp();
     } catch (e) {
-      sessionStorage.removeItem(TOKEN_KEY);
+      if (e.status === 401) sessionStorage.removeItem(TOKEN_KEY);
       showLogin(e.message || "Auth failed");
     }
   }
@@ -112,12 +128,13 @@
     showLogin();
   };
 
-  function setActiveTab(tab) {
-    if (!$(`tab-${tab}`)) tab = "accounts";
+  function setActiveTab(tab, opts = {}) {
+    tab = normalizeTab(tab);
     localStorage.setItem(TAB_KEY, tab);
     document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
     document.querySelectorAll(".tab-panel").forEach((p) => p.classList.add("hidden"));
     $(`tab-${tab}`).classList.remove("hidden");
+    if (opts.load === false) return;
     if (tab === "stats") refreshStats();
     if (tab === "keys") refreshKeys();
   }
@@ -173,7 +190,11 @@
 
   async function refreshAccounts() {
     const data = await api("/admin/api/accounts");
-    accountsCache = data.accounts || [];
+    renderAccounts(data.accounts || []);
+  }
+
+  function renderAccounts(accounts) {
+    accountsCache = accounts;
     const body = $("accounts-body");
     body.innerHTML = "";
     for (const a of accountsCache) {
@@ -222,9 +243,6 @@
     body.querySelectorAll("[data-usage]").forEach((el) => {
       el.onclick = async () => loadProviderUsage(el.dataset.usage, el);
     });
-    for (const a of accountsCache) {
-      if (supportsProviderUsage(a)) loadProviderUsage(a.id);
-    }
     body.querySelectorAll("[data-test]").forEach((el) => {
       el.onclick = async () => {
         el.disabled = true;
@@ -435,7 +453,11 @@
 
   async function refreshKeys() {
     const data = await api("/admin/api/api-keys");
-    keysCache = data.keys || [];
+    renderKeys(data.keys || []);
+  }
+
+  function renderKeys(keys) {
+    keysCache = keys;
     const body = $("keys-body");
     body.innerHTML = "";
     for (const k of keysCache) {
@@ -526,6 +548,10 @@
 
   async function refreshStats() {
     const s = await api("/admin/api/stats");
+    renderStats(s);
+  }
+
+  function renderStats(s) {
     $("stats-summary").innerHTML = `
       <div class="stat"><div class="n">${s.today?.ok || 0}</div><div class="l">OK today</div></div>
       <div class="stat"><div class="n">${s.today?.fail || 0}</div><div class="l">Failures today</div></div>
@@ -544,7 +570,7 @@
         <td class="muted">${e.latencyMs ?? ""}</td>
         <td class="muted small error">${escapeHtml(e.error || "")}</td>
         <td><button class="ghost small inspect-btn">View</button></td>`;
-      
+
       tr.querySelector(".inspect-btn").onclick = () => {
         $("event-ip").textContent = e.ip || "unknown";
         $("event-ua").textContent = e.userAgent || "unknown";
@@ -560,14 +586,16 @@
       body.appendChild(tr);
     }
   }
-  $("refresh-stats").onclick = () => refreshStats();
-  $("close-event-dialog").onclick = () => $("event-dialog").close();
+
+  function applySettings(settings) {
+    $("set-default-mode").value = settings.default_mode || "auto";
+    $("set-default-limit").value = settings.default_limit || 10;
+    $("set-max-limit").value = settings.max_limit || 20;
+  }
 
   async function loadSettings() {
     const s = await api("/admin/api/settings");
-    $("set-default-mode").value = s.settings.default_mode || "auto";
-    $("set-default-limit").value = s.settings.default_limit || 10;
-    $("set-max-limit").value = s.settings.max_limit || 20;
+    applySettings(s.settings || {});
   }
   $("save-settings").onclick = async () => {
     await api("/admin/api/settings", {

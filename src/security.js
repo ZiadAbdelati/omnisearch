@@ -84,9 +84,9 @@ function securityHeaders(req, res, next) {
 
 /**
  * Simple fixed-window rate limiter per IP+bucket.
- * @param {{ windowMs: number, max: number, bucket?: (req)=>string }} opts
+ * @param {{ windowMs: number, max: number, bucket?: (req)=>string, skip?: (req)=>boolean }} opts
  */
-function rateLimit({ windowMs, max, bucket }) {
+function rateLimit({ windowMs, max, bucket, skip }) {
   const hits = new Map();
   // opportunistic cleanup
   setInterval(() => {
@@ -97,6 +97,7 @@ function rateLimit({ windowMs, max, bucket }) {
   }, Math.min(windowMs, 60_000)).unref?.();
 
   return function rateLimitMiddleware(req, res, next) {
+    if (skip?.(req)) return next();
     const ip =
       (req.headers["x-forwarded-for"] &&
         String(req.headers["x-forwarded-for"]).split(",")[0].trim()) ||
