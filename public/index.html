@@ -56,20 +56,31 @@
                 <th></th>
               </tr>
             </thead>
-            <tbody id="accounts-body"></tbody>
+      <section id="tab-stats" class="tab-panel hidden">
+        <div class="panel-head"><h2>Usage</h2>
+          <button id="refresh-stats" class="ghost">Refresh</button>
+        </div>
+        <div id="stats-summary" class="cards"></div>
+        <h3>Recent events</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>IP / App</th>
+                <th>Query</th>
+                <th>Provider</th>
+                <th>OK</th>
+                <th>Results</th>
+                <th>ms</th>
+                <th>Error</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="stats-body"></tbody>
           </table>
         </div>
       </section>
-
-      <section id="tab-search" class="tab-panel hidden">
-        <div class="panel-head"><h2>Test search</h2></div>
-        <div class="card form-grid">
-          <label>Query
-            <input id="search-q" value="example domain" />
-          </label>
-          <label>Limit
-            <input id="search-limit" type="number" min="1" max="20" value="5" />
-          </label>
           <label>Mode
             <select id="search-mode">
               <option value="auto">auto</option>
@@ -190,7 +201,22 @@
       <p id="dialog-msg" class="muted"></p>
     </form>
   </dialog>
+  </dialog>
 
+  <dialog id="event-dialog">
+    <div class="card dialog-card" style="width: min(800px, 100vw); max-width: 100%;">
+      <div class="panel-head">
+        <h3 id="event-title">Request details</h3>
+        <button type="button" id="close-event-dialog" class="ghost">Close</button>
+      </div>
+      <div style="font-size: 13px; display: grid; gap: 8px;">
+        <div><strong>Client IP:</strong> <span id="event-ip"></span></div>
+        <div><strong>User-Agent:</strong> <span id="event-ua" class="muted"></span></div>
+        <div><strong>Query:</strong> <code id="event-query" style="background:#0a1018;padding:2px 6px;border-radius:4px;"></code></div>
+      </div>
+      <pre id="event-json" class="code-block" style="margin-top: 16px; max-height: 50vh;"></pre>
+    </div>
+  </dialog>
   <script src="/app.js?v=2"></script>
 </body>
 </html>

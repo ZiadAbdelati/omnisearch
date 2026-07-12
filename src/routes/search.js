@@ -14,6 +14,8 @@ router.post("/search", requireGatewayAuth, async (req, res) => {
       mode: body.mode,
       providers: body.providers,
       signal: req.signal,
+      ip: req.ip || req.socket?.remoteAddress,
+      userAgent: req.get("user-agent"),
     });
     res.json(result);
   } catch (e) {
@@ -34,6 +36,8 @@ router.get("/search", requireGatewayAuth, async (req, res) => {
       providers: req.query.providers
         ? String(req.query.providers).split(",").map((s) => s.trim())
         : undefined,
+      ip: req.ip || req.socket?.remoteAddress,
+      userAgent: req.get("user-agent"),
     });
     res.json(result);
   } catch (e) {

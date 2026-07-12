@@ -2,10 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const Database = require("better-sqlite3");
 const { v4: uuid } = require("uuid");
-const { config } = require("./config");
-const { seal } = require("./crypto");
-
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 /** @type {import('better-sqlite3').Database} */
 let db;
@@ -74,15 +71,20 @@ function initDb() {
       ON accounts(provider);
   `);
 
-  const row = db
-    .prepare("SELECT value FROM meta WHERE key = 'schema_version'")
-    .get();
-  if (!row) {
-    db.prepare(
-      "INSERT INTO meta (key, value) VALUES ('schema_version', ?)",
-    ).run(String(SCHEMA_VERSION));
+  let curRow = db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get();
+  if (!curRow) {
+    db.prepare("INSERT INTO meta (key, value) VALUES ('schema_version', ?)").run("1");
+    curRow = { value: "1" };
   }
 
+  let currentVersion = Number(curRow.value);
+  if (currentVersion < 2) {
+    try { db.exec("ALTER TABLE usage_events ADD COLUMN query TEXT"); } catch {}
+    try { db.exec("ALTER TABLE usage_events ADD COLUMN ip TEXT"); } catch {}
+    try { db.exec("ALTER TABLE usage_events ADD COLUMN user_agent TEXT"); } catch {}
+    try { db.exec("ALTER TABLE usage_events ADD COLUMN response_json TEXT"); } catch {}
+    db.exec("UPDATE meta SET value = '2' WHERE key = 'schema_version'");
+  }
   seedDefaults();
   return db;
 }
@@ -302,27 +304,35 @@ function recordUsage({
   accountId,
   provider,
   ok,
+  query,
   queryHash,
   resultCount,
   latencyMs,
   error,
   mode,
+  ip,
+  userAgent,
+  responseJson,
 }) {
   getDb()
     .prepare(
       `INSERT INTO usage_events (
-        account_id, provider, ok, query_hash, result_count, latency_ms, error, mode, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        account_id, provider, ok, query, query_hash, result_count, latency_ms, error, mode, ip, user_agent, response_json, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       accountId,
       provider,
       ok ? 1 : 0,
+      query || null,
       queryHash || null,
       resultCount ?? 0,
       latencyMs ?? null,
       error || null,
       mode || null,
+      ip || null,
+      userAgent || null,
+      responseJson || null,
       new Date().toISOString(),
     );
 }
@@ -385,8 +395,9 @@ function usageStats() {
   const recent = getDb()
     .prepare(
       `SELECT id, account_id AS accountId, provider, ok, result_count AS resultCount,
-              latency_ms AS latencyMs, error, mode, created_at AS createdAt
-       FROM usage_events ORDER BY id DESC LIMIT 50`,
+              latency_ms AS latencyMs, error, mode, query, ip, user_agent AS userAgent,
+              response_json AS responseJson, created_at AS createdAt
+       FROM usage_events ORDER BY id DESC LIMIT 100`,
     )
     .all();
 

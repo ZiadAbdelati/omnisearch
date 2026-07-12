@@ -253,23 +253,44 @@
       name: $("acc-name").value.trim(),
       provider: $("acc-provider").value,
       baseUrl: $("acc-base").value.trim() || null,
-      priority: Number($("acc-priority").value || 100),
-      weight: Number($("acc-weight").value || 1),
-      dailyLimit: num("acc-daily"),
-      monthlyLimit: num("acc-monthly"),
-      rpmLimit: num("acc-rpm"),
-      modes,
-      notes: $("acc-notes").value.trim() || null,
-      enabled: $("acc-enabled").checked,
-    };
-    const secret = $("acc-secret").value;
-    if (secret) payload.secret = secret;
-    if (!$("acc-id").value && !secret && payload.provider !== "searxng") {
-      throw new Error("API key required for new account");
+  async function refreshStats() {
+    const s = await api("/admin/api/stats");
+    $("stats-summary").innerHTML = `
+      <div class="stat"><div class="n">${s.today?.ok || 0}</div><div class="l">OK today</div></div>
+      <div class="stat"><div class="n">${s.today?.fail || 0}</div><div class="l">Failures today</div></div>
+      <div class="stat"><div class="n">${s.accounts?.length || 0}</div><div class="l">Accounts</div></div>`;
+    const body = $("stats-body");
+    body.innerHTML = "";
+    for (const e of s.recent || []) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td class="muted small">${escapeHtml(e.createdAt || "")}</td>
+        <td class="muted small">${escapeHtml(e.ip || "")}</td>
+        <td><strong>${escapeHtml(e.query || "")}</strong></td>
+        <td>${escapeHtml(e.provider)}</td>
+        <td>${e.ok ? `<span class="pill ok">✓</span>` : `<span class="pill bad">✗</span>`}</td>
+        <td>${e.resultCount ?? ""}</td>
+        <td class="muted">${e.latencyMs ?? ""}</td>
+        <td class="muted small error">${escapeHtml(e.error || "")}</td>
+        <td><button class="ghost small inspect-btn">View</button></td>`;
+      
+      tr.querySelector(".inspect-btn").onclick = () => {
+        $("event-ip").textContent = e.ip || "unknown";
+        $("event-ua").textContent = e.userAgent || "unknown";
+        $("event-query").textContent = e.query || "none";
+        try {
+          const parsed = typeof e.responseJson === "string" ? JSON.parse(e.responseJson) : e.responseJson;
+          $("event-json").textContent = parsed ? JSON.stringify(parsed, null, 2) : (e.error || "No response data");
+        } catch {
+          $("event-json").textContent = e.responseJson || e.error || "No response data";
+        }
+        $("event-dialog").showModal();
+      };
+      body.appendChild(tr);
     }
-    return payload;
   }
-
+  $("refresh-stats").onclick = () => refreshStats();
+  $("close-event-dialog").onclick = () => $("event-dialog").close();
   $("account-form").onsubmit = async (e) => {
     e.preventDefault();
     try {
