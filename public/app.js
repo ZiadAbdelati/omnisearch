@@ -203,7 +203,7 @@
         <td><input type="checkbox" data-toggle="${a.id}" ${a.enabled ? "checked" : ""} /></td>
         <td>
           <strong>${escapeHtml(a.name)}</strong>
-          <div class="muted small">${a.hasSecret ? escapeHtml(a.secretPreview || "••••") : "no secret"}
+          <div class="account-meta muted small">${a.hasSecret ? escapeHtml(a.secretPreview || "••••") : "no secret"}
           ${a.baseUrl ? " · " + escapeHtml(a.baseUrl) : ""}</div>
         </td>
         <td><code>${escapeHtml(a.provider)}</code></td>

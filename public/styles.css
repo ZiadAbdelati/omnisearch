@@ -161,6 +161,7 @@ tr:last-child td { border-bottom: none; }
   gap: 6px;
   white-space: nowrap;
 }
+.account-meta { white-space: nowrap; }
 
 .form-grid { display: grid; gap: 4px; max-width: 640px; }
 .row, .row-2 { display: flex; gap: 12px; }
