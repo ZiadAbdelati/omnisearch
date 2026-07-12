@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Search Gateway</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div id="login-view" class="login-wrap">
+    <div class="card login-card">
+      <h1>Search Gateway</h1>
+      <p class="muted">Admin access — same role as OmniRoute’s control plane, for search accounts.</p>
+      <label>Admin token
+        <input id="login-token" type="password" autocomplete="current-password" placeholder="ADMIN_TOKEN" />
+      </label>
+      <button id="login-btn" class="primary">Enter</button>
+      <p id="login-error" class="error hidden"></p>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">SG</span>
+        <div>
+          <strong>Search Gateway</strong>
+          <div class="muted small" id="health-line">—</div>
+        </div>
+      </div>
+      <nav class="tabs">
+        <button data-tab="accounts" class="tab active">Accounts</button>
+        <button data-tab="search" class="tab">Test search</button>
+        <button data-tab="stats" class="tab">Usage</button>
+        <button data-tab="settings" class="tab">Settings</button>
+      </nav>
+      <button id="logout-btn" class="ghost">Log out</button>
+    </header>
+
+    <main>
+      <section id="tab-accounts" class="tab-panel">
+        <div class="panel-head">
+          <h2>Accounts</h2>
+          <button id="add-account-btn" class="primary">Add account</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Enabled</th>
+                <th>Name</th>
+                <th>Provider</th>
+                <th>Priority</th>
+                <th>Weight</th>
+                <th>Limits</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="accounts-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="tab-search" class="tab-panel hidden">
+        <div class="panel-head"><h2>Test search</h2></div>
+        <div class="card form-grid">
+          <label>Query
+            <input id="search-q" value="example domain" />
+          </label>
+          <label>Limit
+            <input id="search-limit" type="number" min="1" max="20" value="5" />
+          </label>
+          <label>Mode
+            <select id="search-mode">
+              <option value="auto">auto</option>
+              <option value="balanced">balanced</option>
+              <option value="fresh">fresh</option>
+              <option value="semantic">semantic</option>
+              <option value="cheap">cheap</option>
+            </select>
+          </label>
+          <label>Gateway API token (for /v1/search)
+            <input id="search-gateway-token" type="password" placeholder="GATEWAY_API_TOKEN" />
+          </label>
+          <div class="row">
+            <button id="run-search-btn" class="primary">Run search</button>
+          </div>
+        </div>
+        <pre id="search-out" class="code-block"></pre>
+      </section>
+
+      <section id="tab-stats" class="tab-panel hidden">
+        <div class="panel-head"><h2>Usage</h2>
+          <button id="refresh-stats" class="ghost">Refresh</button>
+        </div>
+        <div id="stats-summary" class="cards"></div>
+        <h3>Recent events</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Provider</th>
+                <th>OK</th>
+                <th>Results</th>
+                <th>ms</th>
+                <th>Error</th>
+              </tr>
+            </thead>
+            <tbody id="stats-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="tab-settings" class="tab-panel hidden">
+        <div class="panel-head"><h2>Settings</h2></div>
+        <div class="card form-grid">
+          <label>Default mode
+            <select id="set-default-mode">
+              <option value="auto">auto</option>
+              <option value="balanced">balanced</option>
+              <option value="fresh">fresh</option>
+              <option value="semantic">semantic</option>
+              <option value="cheap">cheap</option>
+            </select>
+          </label>
+          <label>Default limit
+            <input id="set-default-limit" type="number" min="1" max="50" />
+          </label>
+          <label>Max limit
+            <input id="set-max-limit" type="number" min="1" max="50" />
+          </label>
+          <button id="save-settings" class="primary">Save settings</button>
+          <p id="settings-msg" class="muted"></p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="account-dialog">
+    <form method="dialog" id="account-form" class="card dialog-card">
+      <h3 id="dialog-title">Add account</h3>
+      <input type="hidden" id="acc-id" />
+      <label>Name
+        <input id="acc-name" required placeholder="brave-primary" />
+      </label>
+      <label>Provider
+        <select id="acc-provider" required>
+          <option value="brave">brave</option>
+          <option value="tavily">tavily</option>
+          <option value="exa">exa</option>
+          <option value="searxng">searxng</option>
+        </select>
+      </label>
+      <label id="secret-label">API key / secret
+        <input id="acc-secret" type="password" autocomplete="off" placeholder="Leave blank to keep existing" />
+      </label>
+      <label>Base URL <span class="muted small">(required for searxng)</span>
+        <input id="acc-base" placeholder="http://192.168.50.29:8080" />
+      </label>
+      <div class="row-2">
+        <label>Priority <span class="muted small">(lower = first)</span>
+          <input id="acc-priority" type="number" value="100" />
+        </label>
+        <label>Weight
+          <input id="acc-weight" type="number" step="0.1" value="1" />
+        </label>
+      </div>
+      <div class="row-2">
+        <label>Daily limit
+          <input id="acc-daily" type="number" placeholder="∞" />
+        </label>
+        <label>Monthly limit
+          <input id="acc-monthly" type="number" placeholder="∞" />
+        </label>
+      </div>
+      <label>RPM limit
+        <input id="acc-rpm" type="number" placeholder="∞" />
+      </label>
+      <label>Modes (comma-separated)
+        <input id="acc-modes" placeholder="auto,balanced,cheap" />
+      </label>
+      <label>Notes
+        <input id="acc-notes" />
+      </label>
+      <label class="check">
+        <input id="acc-enabled" type="checkbox" checked /> Enabled
+      </label>
+      <div class="dialog-actions">
+        <button type="button" id="test-account-btn" class="ghost">Test</button>
+        <button type="button" id="cancel-dialog" class="ghost">Cancel</button>
+        <button type="submit" class="primary">Save</button>
+      </div>
+      <p id="dialog-msg" class="muted"></p>
+    </form>
+  </dialog>
+
+  <script src="/app.js"></script>
+</body>
+</html>

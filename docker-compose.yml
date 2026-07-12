@@ -1,0 +1,23 @@
+services:
+  search-gateway:
+    build: .
+    container_name: search-gateway
+    ports:
+      - "8787:8787"
+    environment:
+      SECRET_KEY: ${SECRET_KEY:-change-me-to-a-long-random-string}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-change-me-admin-token}
+      GATEWAY_API_TOKEN: ${GATEWAY_API_TOKEN:-change-me-gateway-token}
+      HOST: "0.0.0.0"
+      PORT: "8787"
+      DATABASE_PATH: /data/gateway.db
+      # Seed a SearXNG account on first boot if DB empty
+      DEFAULT_SEARXNG_URL: ${DEFAULT_SEARXNG_URL:-http://172.17.0.1:8080}
+    volumes:
+      - search-gateway-data:/data
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  search-gateway-data:
