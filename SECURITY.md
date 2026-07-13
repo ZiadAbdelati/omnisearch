@@ -2,7 +2,7 @@
 
 ## Threat model (summary)
 
-Search Gateway is a **trusted-lab / self-hosted** service that:
+OmniSearch is a **trusted-lab / self-hosted** service that:
 
 - Stores third-party search API keys (encrypted at rest)
 - Exposes a **bearer-authenticated** search API

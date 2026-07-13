@@ -1,7 +1,7 @@
 {
-  "name": "search-gateway",
+  "name": "omnisearch",
   "version": "1.0.0",
-  "description": "Self-hosted multi-provider web search gateway (Brave, Tavily, Exa, Kagi, Jina, \u2026) with admin UI, quotas, failover",
+  "description": "Self-hosted multi-provider web search proxy (Brave, Tavily, Exa, Kagi, Jina, …) with admin UI, quotas, failover",
   "main": "src/index.js",
   "type": "commonjs",
   "scripts": {
@@ -20,6 +20,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/example/search-gateway"
+    "url": "https://github.com/example/omnisearch"
   }
 }

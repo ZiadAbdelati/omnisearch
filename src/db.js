@@ -5,7 +5,7 @@ const Database = require("better-sqlite3");
 const { v4: uuid } = require("uuid");
 const { config } = require("./config");
 const { seal } = require("./crypto");
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 6;
 
 /** @type {import('better-sqlite3').Database} */
 let db;
@@ -52,6 +52,9 @@ function initDb() {
     CREATE TABLE IF NOT EXISTS usage_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       account_id TEXT NOT NULL,
+      api_key_id TEXT,
+      api_key_name TEXT,
+      api_key_preview TEXT,
       provider TEXT NOT NULL,
       ok INTEGER NOT NULL,
       query_hash TEXT,
@@ -60,7 +63,8 @@ function initDb() {
       error TEXT,
       mode TEXT,
       created_at TEXT NOT NULL,
-      FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+      FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE,
+      FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS settings (
@@ -98,6 +102,25 @@ function initDb() {
   ensureProviderQuotaTable();
   if (currentVersion < 4) {
     db.exec("UPDATE meta SET value = '4' WHERE key = 'schema_version'");
+    currentVersion = 4;
+  }
+  if (currentVersion < 5) {
+    try { db.exec("ALTER TABLE usage_events ADD COLUMN api_key_id TEXT"); } catch {}
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_usage_api_key_created ON usage_events(api_key_id, created_at)`);
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_usage_created ON usage_events(created_at)`);
+    db.exec("UPDATE meta SET value = '5' WHERE key = 'schema_version'");
+    currentVersion = 5;
+  }
+  if (currentVersion < 6) {
+    try { db.exec("ALTER TABLE api_keys ADD COLUMN deleted_at TEXT"); } catch {}
+    try { db.exec("ALTER TABLE usage_events ADD COLUMN api_key_name TEXT"); } catch {}
+    try { db.exec("ALTER TABLE usage_events ADD COLUMN api_key_preview TEXT"); } catch {}
+    db.exec(`UPDATE usage_events
+      SET api_key_name = COALESCE(api_key_name, (SELECT name FROM api_keys WHERE api_keys.id = usage_events.api_key_id)),
+          api_key_preview = COALESCE(api_key_preview, (SELECT token_preview FROM api_keys WHERE api_keys.id = usage_events.api_key_id))
+      WHERE api_key_id IS NOT NULL`);
+    db.exec("UPDATE meta SET value = '6' WHERE key = 'schema_version'");
+    currentVersion = 6;
   }
   seedDefaults();
   return db;
@@ -118,6 +141,7 @@ function ensureApiKeyTables() {
       max_results INTEGER,
       notes TEXT,
       last_used_at TEXT,
+      deleted_at TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -263,6 +287,8 @@ function apiKeyFromRow(row) {
     maxResults: row.max_results,
     notes: row.notes,
     lastUsedAt: row.last_used_at,
+    deletedAt: row.deleted_at,
+    deleted: !!row.deleted_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -270,20 +296,20 @@ function apiKeyFromRow(row) {
 
 function listApiKeys() {
   return getDb()
-    .prepare("SELECT * FROM api_keys ORDER BY created_at DESC")
+    .prepare("SELECT * FROM api_keys WHERE deleted_at IS NULL ORDER BY created_at DESC")
     .all()
     .map(apiKeyFromRow);
 }
 
 function getApiKey(id) {
-  const row = getDb().prepare("SELECT * FROM api_keys WHERE id = ?").get(id);
+  const row = getDb().prepare("SELECT * FROM api_keys WHERE id = ? AND deleted_at IS NULL").get(id);
   return apiKeyFromRow(row);
 }
 
 function getApiKeyByToken(token) {
   if (!token) return null;
   const row = getDb()
-    .prepare("SELECT * FROM api_keys WHERE token_hash = ? AND enabled = 1")
+    .prepare("SELECT * FROM api_keys WHERE token_hash = ? AND enabled = 1 AND deleted_at IS NULL")
     .get(hashApiToken(token));
   return apiKeyFromRow(row);
 }
@@ -347,7 +373,7 @@ function updateApiKey(id, patch) {
 }
 
 function rerollApiKey(id) {
-  const row = getDb().prepare("SELECT * FROM api_keys WHERE id = ?").get(id);
+  const row = getDb().prepare("SELECT * FROM api_keys WHERE id = ? AND deleted_at IS NULL").get(id);
   if (!row) return null;
   const token = generateApiToken();
   getDb()
@@ -357,7 +383,10 @@ function rerollApiKey(id) {
 }
 
 function deleteApiKey(id) {
-  const info = getDb().prepare("DELETE FROM api_keys WHERE id = ?").run(id);
+  const now = new Date().toISOString();
+  const info = getDb()
+    .prepare("UPDATE api_keys SET enabled = 0, deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL")
+    .run(now, now, id);
   return info.changes > 0;
 }
 
@@ -532,6 +561,9 @@ function deleteAccount(id) {
 
 function recordUsage({
   accountId,
+  apiKeyId,
+  apiKeyName,
+  apiKeyPreview,
   provider,
   ok,
   query,
@@ -547,11 +579,14 @@ function recordUsage({
   getDb()
     .prepare(
       `INSERT INTO usage_events (
-        account_id, provider, ok, query, query_hash, result_count, latency_ms, error, mode, ip, user_agent, response_json, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        account_id, api_key_id, api_key_name, api_key_preview, provider, ok, query, query_hash, result_count, latency_ms, error, mode, ip, user_agent, response_json, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       accountId,
+      apiKeyId || null,
+      apiKeyName || null,
+      apiKeyPreview || null,
       provider,
       ok ? 1 : 0,
       query || null,
@@ -622,14 +657,149 @@ function accountUsageStats(accountId) {
 }
 
 
-function usageStats() {
-  const day = new Date();
-  day.setUTCHours(0, 0, 0, 0);
-  const month = new Date(
-    Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), 1),
-  );
-  const dayIso = day.toISOString();
-  const monthIso = month.toISOString();
+function parseDateBoundary(value, boundary) {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    const date = new Date(`${raw}T00:00:00.000Z`);
+    if (Number.isNaN(date.getTime())) return null;
+    if (boundary === "end") date.setUTCDate(date.getUTCDate() + 1);
+    return date.toISOString();
+  }
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
+}
+
+function normalizeUsageFilters(filters = {}) {
+  const statusRaw = String(filters.status || "all").trim().toLowerCase();
+  const status = ["ok", "success", "succeeded"].includes(statusRaw)
+    ? "ok"
+    : ["fail", "failed", "error"].includes(statusRaw)
+      ? "fail"
+      : "all";
+  const limit = Math.min(Math.max(Number(filters.limit) || 100, 1), 500);
+  return {
+    from: parseDateBoundary(filters.from, "start"),
+    to: parseDateBoundary(filters.to, "end"),
+    apiKeyId: String(filters.apiKeyId || "").trim(),
+    provider: String(filters.provider || "").trim(),
+    status,
+    ipOrApp: String(filters.ipOrApp || "").trim().slice(0, 200),
+    query: String(filters.query || "").trim().slice(0, 200),
+    limit,
+  };
+}
+
+function usageWhere(filters) {
+  const where = [];
+  const params = [];
+  if (filters.from) {
+    where.push("u.created_at >= ?");
+    params.push(filters.from);
+  }
+  if (filters.to) {
+    where.push("u.created_at < ?");
+    params.push(filters.to);
+  }
+  if (filters.apiKeyId === "__unknown") {
+    where.push("u.api_key_id IS NULL");
+  } else if (filters.apiKeyId) {
+    where.push("u.api_key_id = ?");
+    params.push(filters.apiKeyId);
+  }
+  if (filters.provider) {
+    where.push("u.provider = ?");
+    params.push(filters.provider);
+  }
+  if (filters.status === "ok") where.push("u.ok = 1");
+  if (filters.status === "fail") where.push("u.ok = 0");
+  if (filters.ipOrApp) {
+    where.push("(LOWER(COALESCE(u.ip, '')) LIKE ? OR LOWER(COALESCE(u.user_agent, '')) LIKE ?)");
+    const needle = `%${filters.ipOrApp.toLowerCase()}%`;
+    params.push(needle, needle);
+  }
+  if (filters.query) {
+    where.push("LOWER(COALESCE(u.query, '')) LIKE ?");
+    params.push(`%${filters.query.toLowerCase()}%`);
+  }
+  return {
+    clause: where.length ? `WHERE ${where.join(" AND ")}` : "",
+    params,
+  };
+}
+
+function usageFilterOptions() {
+  const providers = getDb()
+    .prepare(
+      `SELECT provider FROM accounts
+       UNION SELECT provider FROM usage_events
+       ORDER BY provider`,
+    )
+    .all()
+    .map((row) => row.provider)
+    .filter(Boolean);
+
+  const activeKeys = listApiKeys();
+  const activeIds = new Set(activeKeys.map((key) => key.id));
+  const deletedKeys = getDb()
+    .prepare(
+      `SELECT DISTINCT k.*
+       FROM api_keys k
+       JOIN usage_events u ON u.api_key_id = k.id
+       WHERE k.deleted_at IS NOT NULL
+       ORDER BY k.created_at DESC`,
+    )
+    .all()
+    .map(apiKeyFromRow)
+    .filter((key) => key && !activeIds.has(key.id));
+  const knownIds = new Set([...activeIds, ...deletedKeys.map((key) => key.id)]);
+  const orphanedKeys = getDb()
+    .prepare(
+      `SELECT u.api_key_id AS id,
+              COALESCE(MAX(u.api_key_name), 'Deleted key') AS name,
+              MAX(u.api_key_preview) AS tokenPreview
+       FROM usage_events u
+       LEFT JOIN api_keys k ON k.id = u.api_key_id
+       WHERE u.api_key_id IS NOT NULL AND k.id IS NULL
+       GROUP BY u.api_key_id
+       ORDER BY MAX(u.created_at) DESC`,
+    )
+    .all()
+    .filter((key) => key.id && !knownIds.has(key.id))
+    .map((key) => ({ ...key, enabled: false, deleted: true }));
+  const hasUnknownKeyEvents = getDb()
+    .prepare("SELECT 1 FROM usage_events WHERE api_key_id IS NULL LIMIT 1")
+    .get();
+
+  const apiKeys = [...activeKeys, ...deletedKeys, ...orphanedKeys].map((key) => ({
+    id: key.id,
+    name: key.name,
+    tokenPreview: key.tokenPreview,
+    enabled: key.enabled,
+    deleted: key.deleted,
+  }));
+  if (hasUnknownKeyEvents) {
+    apiKeys.push({
+      id: "__unknown",
+      name: "Legacy / no key",
+      tokenPreview: null,
+      enabled: false,
+      deleted: false,
+      system: true,
+    });
+  }
+
+  return {
+    providers,
+    apiKeys,
+  };
+}
+
+function usageStats(rawFilters = {}) {
+  const filters = normalizeUsageFilters(rawFilters);
+  const { clause, params } = usageWhere(filters);
 
   const accounts = listAccounts();
   const perAccount = accounts.map((a) => ({
@@ -640,33 +810,46 @@ function usageStats() {
   const totals = getDb()
     .prepare(
       `SELECT
-         SUM(CASE WHEN ok = 1 THEN 1 ELSE 0 END) AS ok,
-         SUM(CASE WHEN ok = 0 THEN 1 ELSE 0 END) AS fail,
+         COALESCE(SUM(CASE WHEN u.ok = 1 THEN 1 ELSE 0 END), 0) AS ok,
+         COALESCE(SUM(CASE WHEN u.ok = 0 THEN 1 ELSE 0 END), 0) AS fail,
          COUNT(*) AS total
-       FROM usage_events WHERE created_at >= ?`,
+       FROM usage_events u ${clause}`,
     )
-    .get(dayIso);
+    .get(...params);
 
   const byProvider = getDb()
     .prepare(
-      `SELECT provider,
-         SUM(CASE WHEN ok = 1 THEN 1 ELSE 0 END) AS ok,
+      `SELECT u.provider,
+         COALESCE(SUM(CASE WHEN u.ok = 1 THEN 1 ELSE 0 END), 0) AS ok,
          COUNT(*) AS total
-       FROM usage_events WHERE created_at >= ?
-       GROUP BY provider`,
+       FROM usage_events u ${clause}
+       GROUP BY u.provider
+       ORDER BY total DESC, u.provider`,
     )
-    .all(dayIso);
+    .all(...params);
 
   const recent = getDb()
     .prepare(
-      `SELECT id, account_id AS accountId, provider, ok, result_count AS resultCount,
-              latency_ms AS latencyMs, error, mode, query, ip, user_agent AS userAgent,
-              response_json AS responseJson, created_at AS createdAt
-       FROM usage_events ORDER BY id DESC LIMIT 100`,
+      `SELECT u.id, u.account_id AS accountId, a.name AS accountName,
+              u.api_key_id AS apiKeyId,
+              COALESCE(u.api_key_name, k.name) AS apiKeyName,
+              COALESCE(u.api_key_preview, k.token_preview) AS apiKeyPreview,
+              k.deleted_at AS apiKeyDeletedAt,
+              u.provider, u.ok, u.result_count AS resultCount,
+              u.latency_ms AS latencyMs, u.error, u.mode, u.query, u.ip, u.user_agent AS userAgent,
+              u.response_json AS responseJson, u.created_at AS createdAt
+       FROM usage_events u
+       LEFT JOIN accounts a ON a.id = u.account_id
+       LEFT JOIN api_keys k ON k.id = u.api_key_id
+       ${clause}
+       ORDER BY u.id DESC LIMIT ?`,
     )
-    .all();
+    .all(...params, filters.limit)
+    .map((event) => ({ ...event, ok: !!event.ok }));
 
   return {
+    filters,
+    filterOptions: usageFilterOptions(),
     today: totals,
     byProvider,
     accounts: perAccount,

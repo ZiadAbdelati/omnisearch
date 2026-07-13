@@ -31,7 +31,7 @@ const app = createApp();
 
 const server = app.listen(config.port, config.host, () => {
   console.log(
-    `search-gateway listening on http://${config.host}:${config.port}`,
+    `omnisearch listening on http://${config.host}:${config.port}`,
   );
   console.log(`  admin UI:  http://127.0.0.1:${config.port}/`);
   console.log(`  search:    POST /v1/search`);

@@ -1,7 +1,7 @@
 services:
-  search-gateway:
+  omnisearch:
     build: .
-    container_name: search-gateway
+    container_name: omnisearch
     ports:
       - "8787:8787"
     environment:

@@ -1,4 +1,4 @@
-# Search Gateway
+# OmniSearch
 
 Self-hosted **multi-provider web search proxy** with admin UI, API-key accounts, quotas, priority, failover, and light intelligent routing.
 
@@ -197,6 +197,9 @@ docker compose up -d --build
 - After schema changes, bump `SCHEMA_VERSION` in `db.js` and migrate.
 - Keep UI dependency-free (vanilla JS/CSS) unless a clear win.
 - New or rerolled managed keys must be shown only once in `#new-key-dialog`; its copy action must use `navigator.clipboard` with the `execCommand("copy")` fallback.
+- Admin UI form controls share `--control-block-size` and should stay visually consistent across mobile Safari and Chromium; avoid one-off input heights unless a regression test documents the exception.
+- When changing `public/styles.css` or `public/app.js`, bump the matching query string in `public/index.html` so deployed browsers do not reuse stale assets.
+- Mobile UI regressions belong in `scripts/ui-regressions.js`; cover cache-busting, mobile containment, and browser-sensitive CSS behavior before changing the UI.
 - Smoke-test: `npm run smoke` against a running server.
 - Do not commit `data/`, `.env`, or real keys.
 
@@ -208,7 +211,7 @@ docker compose up -d --build
 | OMP | Prefer native Brave/Tavily keys **or** a future thin OMP provider pointing here; until then use MCP/HTTP tools |
 | Paseo agents | Wrap this gateway as MCP or HTTP tool; single upstream URL |
 | SearXNG | Add as `searxng` account with `baseUrl=http://searxng:8080` (compose network) or host IP |
-| Odysseus | `SearXNG (self-hosted)` URL: `http://<dedicated-key>:@search-gateway:8787/v1`; client stores/logs URL, so scope and reroll the key |
+| Odysseus | `SearXNG (self-hosted)` URL: `http://<dedicated-key>:@omnisearch:8787/v1`; client stores/logs URL, so scope and reroll the key |
 ## Non-goals
 
 - LLM chat proxying  

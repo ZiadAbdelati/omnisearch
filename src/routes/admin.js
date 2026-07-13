@@ -22,7 +22,7 @@ const {
   rerollApiKey,
   deleteApiKey,
 } = require("../db");
-const { testAccountConfig } = require("../router");
+const { testAccountConfig, executeSearch } = require("../router");
 const { upstreamUsage } = require("../providerUsage");
 const { PROVIDERS, ProviderError } = require("../providers");
 
@@ -71,6 +71,12 @@ function validateProviders(providers) {
   if (!Array.isArray(providers)) return "allowedProviders must be an array";
   const bad = providers.filter((p) => !PROVIDERS[p]);
   return bad.length ? `Invalid provider(s): ${bad.join(", ")}` : null;
+}
+
+function providerList(value) {
+  if (Array.isArray(value)) return value.map(String).map((s) => s.trim()).filter(Boolean);
+  if (value == null || value === "") return undefined;
+  return String(value).split(",").map((s) => s.trim()).filter(Boolean);
 }
 router.get("/health", (_req, res) => {
   res.json({
@@ -260,6 +266,28 @@ router.post("/accounts/test", async (req, res) => {
   }
 });
 
+router.post("/search-test", async (req, res) => {
+  try {
+    const body = req.body || {};
+    const result = await executeSearch({
+      query: body.query || body.q,
+      limit: body.limit,
+      recency: body.recency,
+      mode: body.mode,
+      providers: providerList(body.providers),
+      signal: req.signal,
+      ip: req.ip || req.socket?.remoteAddress,
+      userAgent: req.get("user-agent"),
+    });
+    res.json(result);
+  } catch (e) {
+    res.status(e.status || 500).json({
+      error: e.message || String(e),
+      attempts: e.attempts || undefined,
+    });
+  }
+});
+
 router.get("/api-keys", (_req, res) => {
   res.json({ keys: listApiKeys() });
 });
@@ -305,8 +333,8 @@ router.delete("/api-keys/:id", (req, res) => {
   res.json({ ok: true });
 });
 
-router.get("/stats", (_req, res) => {
-  res.json(usageStats());
+router.get("/stats", (req, res) => {
+  res.json(usageStats(req.query || {}));
 });
 
 router.get("/settings", (_req, res) => {

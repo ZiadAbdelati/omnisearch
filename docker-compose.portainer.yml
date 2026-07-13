@@ -6,9 +6,9 @@
 # build context (Dockerfile + source). Prefer a pre-built local image.
 
 services:
-  search-gateway:
+  omnisearch:
     image: search-gateway:latest
-    container_name: search-gateway
+    container_name: omnisearch
     ports:
       - "8787:8787"
     environment:

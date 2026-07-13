@@ -258,7 +258,7 @@ function effectiveProviders(requested, apiKey) {
  *  signal?: AbortSignal,
  *  ip?: string,
  *  userAgent?: string,
- *  apiKey?: { id: string, allowedProviders?: string[], rpmLimit?: number, dailyLimit?: number, monthlyLimit?: number, maxResults?: number },
+ *  apiKey?: { id: string, name?: string, tokenPreview?: string, allowedProviders?: string[], rpmLimit?: number, dailyLimit?: number, monthlyLimit?: number, maxResults?: number },
  * }} opts
  */
 async function executeSearch(opts) {
@@ -305,6 +305,9 @@ async function executeSearch(opts) {
       const ms = Date.now() - t0;
       recordUsage({
         accountId: row.id,
+        apiKeyId: opts.apiKey?.id,
+        apiKeyName: opts.apiKey?.name,
+        apiKeyPreview: opts.apiKey?.tokenPreview,
         provider: row.provider,
         ok: true,
         query,
@@ -351,6 +354,9 @@ async function executeSearch(opts) {
           : new ProviderError("upstream", e.message || String(e));
       recordUsage({
         accountId: row.id,
+        apiKeyId: opts.apiKey?.id,
+        apiKeyName: opts.apiKey?.name,
+        apiKeyPreview: opts.apiKey?.tokenPreview,
         provider: row.provider,
         ok: false,
         query,

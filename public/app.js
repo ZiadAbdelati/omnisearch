@@ -1,6 +1,5 @@
 (() => {
   const TOKEN_KEY = "sg_admin_token";
-  const GW_KEY = "sg_gateway_token";
   const TAB_KEY = "sg_active_tab";
 
   const $ = (id) => document.getElementById(id);
@@ -110,6 +109,7 @@
   }
 
   let providersMeta = [];
+  let statsFilterOptions = { providers: [], apiKeys: [] };
 
   async function boot() {
     if (!token()) return showLogin();
@@ -117,14 +117,13 @@
     try {
       setActiveTab(tab, { load: false });
       const data = await api(`/admin/api/bootstrap?tab=${encodeURIComponent(tab)}`);
-      $("health-line").textContent = `providers: ${data.providers.join(", ")}`;
+      $("health-line").textContent = "Admin console";
       providersMeta = data.providerMeta || [];
       fillProviderSelect();
       renderAccounts(data.accounts || []);
       applySettings(data.settings || {});
       if (data.keys) renderKeys(data.keys);
       if (data.stats) renderStats(data.stats);
-      $("search-gateway-token").value = localStorage.getItem(GW_KEY) || "";
       showApp();
     } catch (e) {
       if (e.status === 401) sessionStorage.removeItem(TOKEN_KEY);
@@ -159,6 +158,7 @@
   });
   $("logout-btn").onclick = () => {
     sessionStorage.removeItem(TOKEN_KEY);
+    closeMobileNav();
     showLogin();
   };
 
@@ -173,8 +173,32 @@
     if (tab === "keys") refreshKeys();
   }
 
+  const mobileMenuBtn = $("mobile-menu-btn");
+  const mobileNavBackdrop = $("mobile-nav-backdrop");
+
+  function openMobileNav() {
+    document.body.classList.add("mobile-menu-open");
+    mobileMenuBtn.setAttribute("aria-expanded", "true");
+    mobileNavBackdrop.hidden = false;
+  }
+
+  function closeMobileNav() {
+    document.body.classList.remove("mobile-menu-open");
+    mobileMenuBtn.setAttribute("aria-expanded", "false");
+    mobileNavBackdrop.hidden = true;
+  }
+
+  mobileMenuBtn.onclick = () => {
+    if (document.body.classList.contains("mobile-menu-open")) closeMobileNav();
+    else openMobileNav();
+  };
+  mobileNavBackdrop.onclick = closeMobileNav;
+
   document.querySelectorAll(".tab").forEach((btn) => {
-    btn.onclick = () => setActiveTab(btn.dataset.tab);
+    btn.onclick = () => {
+      setActiveTab(btn.dataset.tab);
+      closeMobileNav();
+    };
   });
 
   function fmtLimits(a) {
@@ -466,25 +490,18 @@
   };
 
   $("run-search-btn").onclick = async () => {
-    const gw = $("search-gateway-token").value.trim();
     const out = $("search-out");
-    localStorage.setItem(GW_KEY, gw);
     out.classList.remove("hidden");
     out.textContent = "Running…";
     try {
-      const res = await fetch("/v1/search", {
+      const data = await api("/admin/api/search-test", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${gw}`,
-        },
         body: JSON.stringify({
           query: $("search-q").value,
           limit: Number($("search-limit").value || 5),
           mode: $("search-mode").value,
         }),
       });
-      const data = await res.json();
       out.textContent = JSON.stringify(data, null, 2);
     } catch (e) {
       out.textContent = String(e);
@@ -508,8 +525,6 @@
   function showNewKey(token) {
     currentNewKeyToken = token;
     $("new-key-token").textContent = token;
-    $("search-gateway-token").value = token;
-    localStorage.setItem(GW_KEY, token);
     $("new-key-dialog").showModal();
   }
 
@@ -689,8 +704,25 @@
     }
   };
 
+  function statsFilterParams() {
+    const params = new URLSearchParams();
+    const fields = [
+      ["from", $("stats-from").value],
+      ["to", $("stats-to").value],
+      ["apiKeyId", $("stats-api-key").value],
+      ["provider", $("stats-provider").value],
+      ["ipOrApp", $("stats-ip-app").value.trim()],
+      ["status", $("stats-status").value],
+      ["query", $("stats-query").value.trim()],
+    ];
+    for (const [key, value] of fields) {
+      if (value && value !== "all") params.set(key, value);
+    }
+    return params.toString();
+  }
+
   async function refreshStats() {
-    const s = await api("/admin/api/stats");
+    const s = await api(`/admin/api/stats?${statsFilterParams()}`);
     renderStats(s);
   }
 
@@ -707,10 +739,72 @@
     $("event-dialog").showModal();
   }
 
+  function formatIpApp(e) {
+    const ip = e.ip || "";
+    const userAgent = e.userAgent || "";
+    if (ip && userAgent) return `${ip} · ${userAgent}`;
+    return ip || userAgent || "";
+  }
+
+  function formatApiKeyLabel(e) {
+    const name = e.apiKeyName || "";
+    const preview = e.apiKeyPreview || "";
+    if (name && preview) return `${name} (${preview})`;
+    return name || preview || "";
+  }
+
+  function fillStatsFilters(options = {}) {
+    statsFilterOptions = options;
+    const apiKeySelect = $("stats-api-key");
+    const providerSelect = $("stats-provider");
+    const selectedKey = apiKeySelect.value;
+    const selectedProvider = providerSelect.value;
+
+    apiKeySelect.innerHTML = '<option value="">Any key</option>';
+    for (const key of options.apiKeys || []) {
+      const opt = document.createElement("option");
+      opt.value = key.id;
+      opt.textContent = key.tokenPreview ? `${key.name} (${key.tokenPreview})` : key.name;
+      apiKeySelect.appendChild(opt);
+    }
+    apiKeySelect.value = selectedKey;
+
+    providerSelect.innerHTML = '<option value="">Any provider</option>';
+    for (const provider of options.providers || []) {
+      const opt = document.createElement("option");
+      opt.value = provider;
+      opt.textContent = provider;
+      providerSelect.appendChild(opt);
+    }
+    providerSelect.value = selectedProvider;
+  }
+
+  function clearStatsFilters() {
+    for (const id of ["stats-from", "stats-to", "stats-api-key", "stats-provider", "stats-ip-app", "stats-query"]) {
+      $(id).value = "";
+    }
+    $("stats-status").value = "all";
+  }
+
+  for (const id of ["stats-from", "stats-to", "stats-api-key", "stats-provider", "stats-status"]) {
+    $(id).addEventListener("change", refreshStats);
+  }
+  for (const id of ["stats-ip-app", "stats-query"]) {
+    $(id).addEventListener("keydown", (event) => {
+      if (event.key === "Enter") refreshStats();
+    });
+  }
+  $("refresh-stats").onclick = refreshStats;
+  $("clear-stats-filters").onclick = async () => {
+    clearStatsFilters();
+    await refreshStats();
+  };
+
   function renderStats(s) {
+    fillStatsFilters(s.filterOptions || statsFilterOptions);
     $("stats-summary").innerHTML = `
-      <div class="stat"><div class="n">${s.today?.ok || 0}</div><div class="l">OK today</div></div>
-      <div class="stat"><div class="n">${s.today?.fail || 0}</div><div class="l">Failures today</div></div>
+      <div class="stat"><div class="n">${s.today?.ok || 0}</div><div class="l">Succeeded</div></div>
+      <div class="stat"><div class="n">${s.today?.fail || 0}</div><div class="l">Failed</div></div>
       <div class="stat"><div class="n">${s.accounts?.length || 0}</div><div class="l">Accounts</div></div>`;
     const body = $("stats-body");
     const cards = $("stats-cards");
@@ -719,7 +813,8 @@
     for (const e of s.recent || []) {
       const ok = e.ok ? `<span class="pill ok">✓</span>` : `<span class="pill bad">✗</span>`;
       const createdAt = escapeHtml(e.createdAt || "");
-      const ip = escapeHtml(e.ip || "");
+      const ipApp = escapeHtml(formatIpApp(e));
+      const apiKey = escapeHtml(formatApiKeyLabel(e));
       const query = escapeHtml(e.query || "");
       const provider = escapeHtml(e.provider || "");
       const resultCount = e.resultCount ?? "";
@@ -729,7 +824,8 @@
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td class="muted small">${createdAt}</td>
-        <td class="muted small">${ip}</td>
+        <td class="muted small">${ipApp || "—"}</td>
+        <td class="muted small">${apiKey || "—"}</td>
         <td><strong>${query}</strong></td>
         <td>${provider}</td>
         <td>${ok}</td>
@@ -752,9 +848,10 @@
         </div>
         <div class="mobile-fields">
           <div class="mobile-field"><span>Provider</span><strong>${provider || "—"}</strong></div>
+          <div class="mobile-field"><span>API key</span><strong>${apiKey || "unknown"}</strong></div>
           <div class="mobile-field"><span>Results</span><strong>${resultCount}</strong></div>
           <div class="mobile-field"><span>Latency</span><strong>${latency}${latency === "" ? "" : "ms"}</strong></div>
-          <div class="mobile-field"><span>IP / App</span><strong>${ip || "unknown"}</strong></div>
+          <div class="mobile-field"><span>IP / App</span><strong>${ipApp || "unknown"}</strong></div>
           ${error ? `<div class="mobile-field mobile-field-wide error"><span>Error</span><strong>${error}</strong></div>` : ""}
         </div>
         <div class="mobile-actions actions">

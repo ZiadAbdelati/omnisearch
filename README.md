@@ -1,6 +1,6 @@
-# Search Gateway
+# OmniSearch
 
-Self-hosted multi-provider **web search proxy** with an OmniRoute-style admin UI.
+Self-hosted multi-provider **web search proxy** with an OmniSearch admin UI.
 
 - Multiple accounts per provider (e.g. several Brave keys)
 - Priority, weight, daily/monthly/RPM limits, cooldowns
@@ -60,6 +60,16 @@ Lower **priority** is tried first. Use **Test** before saving if you want.
 
 The Accounts table shows gateway usage inline as `rpm`, `d` (today), and `m` (month). Provider-side quota/credit usage is available for Tavily and SerpAPI. Brave quota is captured from rate-limit headers on every successful Brave search or account test; it reports the plan's longest quota window without issuing a separate upstream usage request.
 
+
+## Admin UI
+
+The admin UI is a dependency-free static SPA under `public/`. It includes responsive mobile layouts for Accounts, API keys, Usage, Test search, and Settings.
+
+- Usage filters collapse to a single-column mobile card.
+- Form controls share a fixed 40px control height across text inputs, date inputs, number inputs, and selects for visual consistency across mobile browsers.
+- The Test search and Settings forms use the same flat panel surface as the rest of the console.
+- Static asset URLs are cache-busted with query versions (`styles.css?v=...`, `app.js?v=...`) whenever shipped CSS/JS behavior changes.
+
 ## Agent usage
 
 Generate a key in **API keys** first. Use per-key provider allowlists and RPM/day/month limits for clients.
@@ -75,14 +85,14 @@ Point MCP tools / custom agent tools at this single URL for lab-wide search.
 
 ## Odysseus integration
 
-Odysseus’s **SearXNG (self-hosted)** provider issues authenticated JSON searches using `/search?format=json`; its settings UI has no separate API-key field. Search Gateway supports the SearXNG JSON subset Odysseus needs.
+Odysseus’s **SearXNG (self-hosted)** provider issues authenticated JSON searches using `/search?format=json`; its settings UI has no separate API-key field. OmniSearch supports the SearXNG JSON subset Odysseus needs.
 
 1. In **API keys**, create a dedicated, least-privilege gateway key for Odysseus. Restrict its providers and apply a suitable RPM/day/month quota.
 2. In Odysseus **Settings → Web Search**, select **SearXNG (self-hosted)** and set the URL to:
    ```text
-   http://<gateway-key>:@search-gateway:8787/v1
+   http://<gateway-key>:@omnisearch:8787/v1
    ```
-   The trailing `@` supplies `<gateway-key>` as the HTTP Basic username with an empty password. Use `search-gateway` only when Odysseus shares the `paseo` Docker network; otherwise use the gateway's reachable host/IP.
+   The trailing `@` supplies `<gateway-key>` as the HTTP Basic username with an empty password. Use `omnisearch` only when Odysseus shares the `paseo` Docker network; otherwise use the gateway's reachable host/IP.
 3. Click **Test**. The URL must retain the `/v1` suffix.
 
 Odysseus persists that URL in application settings, and its HTTP client may log the complete URL including the Basic-auth username. Docker access, Odysseus logs, and an Odysseus application-data backup can expose the embedded key. Treat it as an application secret: use a dedicated key, restrict it, and reroll it from the gateway UI if the Odysseus host, logs, or backup is exposed.

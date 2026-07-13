@@ -28,7 +28,7 @@ function createApp() {
   );
 
   app.get("/healthz", (_req, res) => {
-    res.json({ ok: true, service: "search-gateway" });
+    res.json({ ok: true, service: "omnisearch" });
   });
 
   // Public search — tighter limit

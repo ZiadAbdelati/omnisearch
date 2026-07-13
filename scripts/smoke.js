@@ -6,6 +6,8 @@ let gw = process.env.GATEWAY_API_TOKEN || "";
 async function main() {
   const h = await fetch(`${base}/healthz`);
   if (!h.ok) throw new Error("healthz failed");
+  const health = await h.json();
+  if (health.service !== "omnisearch") throw new Error(`healthz service mismatch: ${health.service}`);
   console.log("healthz ok");
 
   const accounts = await fetch(`${base}/admin/api/accounts`, {
@@ -44,6 +46,18 @@ async function main() {
     const tj = await t.json();
     console.log("searxng test", t.status, tj.ok || tj.error);
   }
+
+  const adminSearch = await fetch(`${base}/admin/api/search-test`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${admin}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query: "example domain", limit: 3, mode: "cheap" }),
+  });
+  const adminSearchJson = await adminSearch.json();
+  console.log("admin search", adminSearch.status, adminSearchJson.provider, adminSearchJson.results?.length, adminSearchJson.error || "");
+  if (!adminSearch.ok) process.exit(1);
 
   const s = await fetch(`${base}/v1/search`, {
     method: "POST",

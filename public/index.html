@@ -3,14 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Search Gateway</title>
-  <link rel="stylesheet" href="/styles.css?v=15" />
+  <meta name="theme-color" content="#0b0f14" />
+  <meta name="color-scheme" content="dark" />
+  <title>OmniSearch</title>
+  <link rel="icon" href="/omnisearch-logo.jpg" />
+  <link rel="stylesheet" href="/styles.css?v=27" />
 </head>
 <body>
   <div id="login-view" class="login-wrap hidden">
     <div class="card login-card">
-      <h1>Search Gateway</h1>
-      <p class="muted">Admin access — same role as OmniRoute’s control plane, for search accounts.</p>
+      <h1>OmniSearch</h1>
+      <p class="muted">Admin access for the multi-provider search control plane.</p>
       <label>Admin password
         <input id="login-token" type="password" autocomplete="current-password" placeholder="ADMIN_TOKEN (password)" />
       </label>
@@ -22,21 +25,23 @@
   <div id="app" class="hidden">
     <header class="topbar">
       <div class="brand">
-        <span class="logo">SG</span>
+        <img class="logo" src="/omnisearch-logo.jpg" alt="" aria-hidden="true" />
         <div>
-          <strong>Search Gateway</strong>
-          <div class="muted small" id="health-line">—</div>
+          <strong>OmniSearch</strong>
+          <div class="muted small" id="health-line">Admin console</div>
         </div>
       </div>
-      <nav class="tabs">
+      <button id="mobile-menu-btn" class="mobile-menu-btn" type="button" aria-expanded="false" aria-controls="primary-nav">Menu</button>
+      <nav id="primary-nav" class="tabs" aria-label="Primary navigation">
         <button data-tab="accounts" class="tab active">Accounts</button>
         <button data-tab="search" class="tab">Test search</button>
         <button data-tab="keys" class="tab">API keys</button>
         <button data-tab="stats" class="tab">Usage</button>
         <button data-tab="settings" class="tab">Settings</button>
+        <button id="logout-btn" class="ghost nav-logout">Log out</button>
       </nav>
-      <button id="logout-btn" class="ghost">Log out</button>
     </header>
+    <div id="mobile-nav-backdrop" class="mobile-nav-backdrop" hidden></div>
 
     <main>
       <section id="tab-accounts" class="tab-panel">
@@ -83,9 +88,6 @@
               <option value="cheap">cheap</option>
             </select>
           </label>
-          <label>Managed API key (for /v1/search)
-            <input id="search-gateway-token" type="password" placeholder="sgk_…" />
-          </label>
           <div class="row">
             <button id="run-search-btn" class="primary">Run search</button>
           </div>
@@ -122,6 +124,38 @@
         <div class="panel-head"><h2>Usage</h2>
           <button id="refresh-stats" class="ghost">Refresh</button>
         </div>
+        <div id="stats-filters" class="card filter-card" aria-label="Usage filters">
+          <div class="filter-grid">
+            <label>From
+              <input id="stats-from" type="date" />
+            </label>
+            <label>To
+              <input id="stats-to" type="date" />
+            </label>
+            <label>API key
+              <select id="stats-api-key"><option value="">Any key</option></select>
+            </label>
+            <label>Provider
+              <select id="stats-provider"><option value="">Any provider</option></select>
+            </label>
+            <label>IP / App
+              <input id="stats-ip-app" placeholder="IP or user-agent" />
+            </label>
+            <label>Status
+              <select id="stats-status">
+                <option value="all">Any status</option>
+                <option value="ok">Succeeded</option>
+                <option value="fail">Failed</option>
+              </select>
+            </label>
+            <label class="filter-query">Query search
+              <input id="stats-query" placeholder="Search query text" />
+            </label>
+          </div>
+          <div class="filter-actions">
+            <button id="clear-stats-filters" class="ghost" type="button">Clear filters</button>
+          </div>
+        </div>
         <div id="stats-summary" class="cards"></div>
         <h3>Recent events</h3>
         <div class="table-wrap">
@@ -130,6 +164,7 @@
               <tr>
                 <th>Time</th>
                 <th>IP / App</th>
+                <th>API key</th>
                 <th>Query</th>
                 <th>Provider</th>
                 <th>OK</th>
@@ -304,6 +339,6 @@
       <pre id="event-json" class="code-block" style="margin-top: 16px; max-height: 50vh;"></pre>
     </div>
   </dialog>
-  <script src="/app.js?v=19"></script>
+  <script src="/app.js?v=25"></script>
 </body>
 </html>
