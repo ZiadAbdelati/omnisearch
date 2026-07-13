@@ -151,10 +151,17 @@ function click(element) {
   assert.match(html, /<strong>OmniSearch<\/strong>/, 'topbar brand should use the OmniSearch app name');
   assert.doesNotMatch(html, /Omnisearch/, 'old casing should not remain in visible HTML');
   assert.doesNotMatch(html, /Search Gateway/, 'old product name should not remain in visible HTML');
-  assert.match(html, /src="\/omnisearch-logo\.jpg"/, 'topbar should use the generated OmniSearch logo asset');
+  assert.match(html, /<link rel="icon" href="\/omnisearch-logo\.svg" \/>/, 'favicon should use the vector OmniSearch logo asset');
+  assert.match(html, /src="\/omnisearch-logo\.svg"/, 'topbar should use the vector OmniSearch logo asset so reload rendering cannot expose JPEG tile seams');
+  const logoSvg = fs.readFileSync('public/omnisearch-logo.svg', 'utf8');
+  assert.match(logoSvg, /viewBox="0 0 36 36"/, 'topbar logo asset should be authored at its rendered size to avoid downsample seams');
+  assert.doesNotMatch(logoSvg, /<image\b|omnisearch-logo\.jpg/, 'topbar logo asset must not embed the old raster image with a square tile boundary');
+  assert.match(logoSvg, /filter="url\(#glyph-glow\)"/, 'logo glow should be part of the vector glyph instead of the image element box');
   assert.match(fs.readFileSync('public/styles.css', 'utf8'), /--display-font:/, 'login title should use a dedicated display font token');
   assert.match(fs.readFileSync('public/styles.css', 'utf8'), /\.login-card h1\s*\{[\s\S]*font-family:\s*var\(--display-font\)/, 'login title should use the display face');
-  assert.match(fs.readFileSync('public/styles.css', 'utf8'), /box-shadow:\s*0 0 10px rgba\(91,157,255,\.14\)/, 'logo glow should be softened');
+  const logoRule = fs.readFileSync('public/styles.css', 'utf8').match(/\.logo\s*\{[^}]*\}/)?.[0] || '';
+  assert.doesNotMatch(logoRule, /box-shadow:/, 'logo element must not use box-shadow because it paints a square halo around the transparent vector mark');
+  assert.match(logoRule, /background:\s*transparent/, 'logo element background should stay transparent so the vector mark has no square tile behind it');
   assert.match(html, /id="stats-filters"/, 'usage page should expose filter controls');
   for (const id of ['stats-from', 'stats-to', 'stats-api-key', 'stats-provider', 'stats-ip-app', 'stats-status', 'stats-query', 'clear-stats-filters']) {
     assert.match(html, new RegExp(`id="${id}"`), `usage filter control ${id} is missing`);
@@ -179,7 +186,7 @@ function click(element) {
   assert.match(fs.readFileSync('public/styles.css', 'utf8'), /@media \(max-width:\s*720px\)[\s\S]*\.tabs\s*\{[\s\S]*block-size:\s*100dvh/, 'mobile drawer should span the viewport so logout is not covered by the backdrop');
   assert.match(fs.readFileSync('public/styles.css', 'utf8'), /clip-path:\s*inset\(0 0 0 100%\)/, 'closed mobile drawer should be clipped inside the viewport');
   assert.doesNotMatch(fs.readFileSync('public/styles.css', 'utf8'), /radial-gradient\(/, 'app pages should not have a broad page-level glow behind short forms');
-  assert.match(html, /href="\/styles\.css\?v=27"/, 'HTML should bust cached mobile CSS after corrected login flex alignment changes');
+  assert.match(html, /href="\/styles\.css\?v=28"/, 'HTML should bust cached CSS after switching the logo to a vector asset');
   assert.match(html, /src="\/app\.js\?v=25"/, 'HTML should bust cached app JS after usage key label changes');
   assert.match(fs.readFileSync('public/styles.css', 'utf8'), /@media \(max-width:\s*720px\)[\s\S]*#account-dialog\[open\][\s\S]*overflow-x:\s*hidden/, 'account dialog must not create horizontal scrolling on mobile');
   assert.match(fs.readFileSync('public/styles.css', 'utf8'), /@media \(max-width:\s*720px\)[\s\S]*\.filter-grid > label\s*\{[\s\S]*min-width:\s*0/, 'usage filter labels must be allowed to shrink inside the mobile card');

@@ -144,8 +144,7 @@ button.danger-solid:hover { filter: brightness(1.06); }
   width: 36px; height: 36px; border-radius: 10px;
   display: block;
   object-fit: cover;
-  background: linear-gradient(135deg, #5b9dff, #7a5cff);
-  box-shadow: 0 0 10px rgba(91,157,255,.14);
+  background: transparent;
 }
 .tabs { display: flex; gap: 6px; flex: 1; align-items: center; }
 .tab {
