@@ -7,7 +7,8 @@
   <meta name="color-scheme" content="dark" />
   <title>OmniSearch</title>
   <link rel="icon" href="/omnisearch-logo.svg" />
-  <link rel="stylesheet" href="/styles.css?v=28" />
+  <link rel="stylesheet" href="/styles.css?v=41" />
+
 </head>
 <body>
   <div id="login-view" class="login-wrap hidden">
@@ -72,7 +73,7 @@
 
       <section id="tab-search" class="tab-panel hidden">
         <div class="panel-head"><h2>Test search</h2></div>
-        <div class="card form-grid">
+        <div class="card form-grid search-test-card">
           <label>Query
             <input id="search-q" placeholder="raspberry pi touchscreen" />
           </label>
@@ -86,6 +87,11 @@
               <option value="fresh">fresh</option>
               <option value="semantic">semantic</option>
               <option value="cheap">cheap</option>
+            </select>
+          </label>
+          <label><span class="muted small">overrides routing</span>
+            <select id="search-provider" aria-label="Provider">
+              <option value="">Any provider</option>
             </select>
           </label>
           <div class="row">
@@ -182,24 +188,59 @@
 
       <section id="tab-settings" class="tab-panel hidden">
         <div class="panel-head"><h2>Settings</h2></div>
-        <div class="card form-grid">
-          <label>Default mode
-            <select id="set-default-mode">
-              <option value="auto">auto</option>
-              <option value="balanced">balanced</option>
-              <option value="fresh">fresh</option>
-              <option value="semantic">semantic</option>
-              <option value="cheap">cheap</option>
-            </select>
-          </label>
-          <label>Default limit
-            <input id="set-default-limit" type="number" min="1" max="50" />
-          </label>
-          <label>Max limit
-            <input id="set-max-limit" type="number" min="1" max="50" />
-          </label>
-          <button id="save-settings" class="primary">Save settings</button>
-          <p id="settings-msg" class="muted"></p>
+        <div class="card settings-card">
+          <div class="settings-section">
+            <div class="settings-copy">
+              <h3>Routing defaults</h3>
+              <p class="muted small">These values fill in requests from clients that do not specify their own mode or limit.</p>
+            </div>
+            <div class="settings-fields">
+              <label>Default mode
+                <select id="set-default-mode">
+                  <option value="auto">auto</option>
+                  <option value="balanced">balanced</option>
+                  <option value="fresh">fresh</option>
+                  <option value="semantic">semantic</option>
+                  <option value="cheap">cheap</option>
+                </select>
+                <span class="field-help">Use semantic mode by default for clients that do not send a mode, or choose another routing preference for unqualified requests.</span>
+              </label>
+              <label>Default limit
+                <input id="set-default-limit" type="number" min="1" max="50" />
+                <span class="field-help">Result count used when a client omits limit/count.</span>
+              </label>
+            </div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-copy">
+              <h3>Request limits</h3>
+              <p class="muted small">Limits protect upstream accounts from oversized searches while still allowing each client key to have stricter quotas.</p>
+            </div>
+            <div class="settings-fields">
+              <label>Max limit
+                <input id="set-max-limit" type="number" min="1" max="50" />
+                <span class="field-help">Caps oversized client requests before routing to a provider.</span>
+              </label>
+            </div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-copy">
+              <h3>Experimental routing</h3>
+              <p class="muted small">Optional behavior for provider combinations that may improve coverage but can spend more upstream quota.</p>
+            </div>
+            <div class="settings-fields">
+              <label class="check settings-check">
+                <input id="set-parallel-semantic" type="checkbox" />
+                <span>
+                  Try Tavily alongside Exa for semantic searches
+                  <small>When semantic mode is requested, the router may race or supplement Exa with Tavily instead of relying on one semantic account path.</small>
+                </span>
+              </label>
+            </div>
+          </div>
+          <div class="settings-actions">
+            <button id="save-settings" class="primary">Save settings</button>
+          </div>
         </div>
       </section>
     </main>
@@ -339,6 +380,6 @@
       <pre id="event-json" class="code-block" style="margin-top: 16px; max-height: 50vh;"></pre>
     </div>
   </dialog>
-  <script src="/app.js?v=25"></script>
+  <script src="/app.js?v=31"></script>
 </body>
 </html>

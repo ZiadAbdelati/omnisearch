@@ -147,6 +147,20 @@
     };
   }
 
+  function fillSearchProviderSelect(accounts) {
+    const sel = $("search-provider");
+    const selected = sel.value;
+    const configured = new Set(accounts.map((account) => account.provider));
+    sel.innerHTML = '<option value="">Any provider</option>';
+    for (const provider of providersMeta.filter((provider) => configured.has(provider.id))) {
+      const opt = document.createElement("option");
+      opt.value = provider.id;
+      opt.textContent = provider.label ? `${provider.label} (${provider.id})` : provider.id;
+      sel.appendChild(opt);
+    }
+    sel.value = configured.has(selected) ? selected : "";
+  }
+
   $("login-btn").onclick = async () => {
     const t = $("login-token").value.trim();
     sessionStorage.setItem(TOKEN_KEY, t);
@@ -253,6 +267,7 @@
 
   function renderAccounts(accounts) {
     accountsCache = accounts;
+    fillSearchProviderSelect(accountsCache);
     const body = $("accounts-body");
     const cards = $("accounts-cards");
     body.innerHTML = "";
@@ -491,6 +506,7 @@
 
   $("run-search-btn").onclick = async () => {
     const out = $("search-out");
+    const provider = $("search-provider").value;
     out.classList.remove("hidden");
     out.textContent = "Running…";
     try {
@@ -500,6 +516,7 @@
           query: $("search-q").value,
           limit: Number($("search-limit").value || 5),
           mode: $("search-mode").value,
+          providers: provider ? [provider] : undefined,
         }),
       });
       out.textContent = JSON.stringify(data, null, 2);
@@ -749,9 +766,11 @@
   function formatApiKeyLabel(e) {
     const name = e.apiKeyName || "";
     const preview = e.apiKeyPreview || "";
-    if (name && preview) return `${name} (${preview})`;
     return name || preview || "";
   }
+
+
+
 
   function fillStatsFilters(options = {}) {
     statsFilterOptions = options;
@@ -868,6 +887,7 @@
     $("set-default-mode").value = settings.default_mode || "auto";
     $("set-default-limit").value = settings.default_limit || 10;
     $("set-max-limit").value = settings.max_limit || 20;
+    $("set-parallel-semantic").checked = settings.try_parallel_semantic === "true";
   }
 
   async function loadSettings() {
@@ -881,9 +901,10 @@
         default_mode: $("set-default-mode").value,
         default_limit: $("set-default-limit").value,
         max_limit: $("set-max-limit").value,
+        try_parallel_semantic: $("set-parallel-semantic").checked ? "true" : "false",
       }),
     });
-    $("settings-msg").textContent = "Saved.";
+    showToast("Settings saved", "success");
   };
 
   boot();
