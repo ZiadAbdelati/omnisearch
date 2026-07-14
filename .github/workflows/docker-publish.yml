@@ -2,13 +2,23 @@ name: Publish Docker image
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Optional extra image tag, for example v1.0.0"
+        required: false
+        type: string
+      push_latest:
+        description: "Also publish the latest tag"
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
   packages: write
 
 env:
-  IMAGE: ghcr.io/${{ github.repository }}
+  IMAGE: ghcr.io/ziadabdelati/omnisearch
 
 jobs:
   publish:
@@ -27,13 +37,29 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Select image tags
+        id: tags
+        env:
+          EXTRA_TAG: ${{ inputs.tag }}
+          PUSH_LATEST: ${{ inputs.push_latest }}
+        run: |
+          {
+            echo 'tags<<EOF'
+            echo "${IMAGE}:${GITHUB_SHA}"
+            if [ "${PUSH_LATEST}" = "true" ]; then
+              echo "${IMAGE}:latest"
+            fi
+            if [ -n "${EXTRA_TAG}" ]; then
+              echo "${IMAGE}:${EXTRA_TAG}"
+            fi
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build and publish
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: |
-            ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:${{ github.sha }}
+          tags: ${{ steps.tags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
