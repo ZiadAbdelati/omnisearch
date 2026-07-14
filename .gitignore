@@ -1,8 +1,17 @@
 node_modules/
 data/
 .env
+.env.*
+!.env.example
 *.db
 *.db-shm
 *.db-wal
 .DS_Store
 npm-debug.log*
+.superpowers/
+.idea/
+.vscode/
+*.log
+tmp/
+.tmp/
+coverage/

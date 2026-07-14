@@ -186,7 +186,7 @@ npm start
 ## Docker
 
 ```bash
-cd /root/workspace/search-gateway   # or /opt/search-gateway
+cd /path/to/omnisearch
 docker compose up -d --build
 ```
 
@@ -209,7 +209,7 @@ docker compose up -d --build
 |---|---|
 | curl / scripts | `POST /v1/search` + managed API key from Admin UI → API keys |
 | OMP | Prefer native Brave/Tavily keys **or** a future thin OMP provider pointing here; until then use MCP/HTTP tools |
-| Paseo agents | Wrap this gateway as MCP or HTTP tool; single upstream URL |
+| Agents / MCP | Wrap this gateway as an MCP or HTTP tool with one upstream URL |
 | SearXNG | Add as `searxng` account with `baseUrl=http://searxng:8080` (compose network) or host IP |
 | Odysseus | `SearXNG (self-hosted)` URL: `http://<dedicated-key>:@omnisearch:8787/v1`; client stores/logs URL, so scope and reroll the key |
 ## Non-goals

@@ -310,18 +310,21 @@
           ${status}
         </div>
         ${baseUrl ? `<div class="mobile-url muted small">${baseUrl}</div>` : ""}
-        <div class="mobile-fields">
-          <div class="mobile-field"><span>Enabled</span><label class="mobile-check"><input type="checkbox" data-toggle="${a.id}" ${a.enabled ? "checked" : ""} /> ${a.enabled ? "On" : "Off"}</label></div>
-          <div class="mobile-field"><span>Priority</span><strong>${a.priority}</strong></div>
-          <div class="mobile-field"><span>Weight</span><strong>${a.weight}</strong></div>
-          <div class="mobile-field"><span>Limits</span><strong>${fmtLimits(a)}</strong></div>
+        <div class="mobile-account-list">
+          <div class="mobile-account-row">
+            <span>Status</span>
+            <label class="mobile-check"><input type="checkbox" data-toggle="${a.id}" ${a.enabled ? "checked" : ""} /> ${a.enabled ? "Enabled" : "Disabled"}</label>
+          </div>
+          <div class="mobile-account-row"><span>Priority</span><strong>${a.priority}</strong></div>
+          <div class="mobile-account-row"><span>Weight</span><strong>${a.weight}</strong></div>
+          <div class="mobile-account-row"><span>Limits</span><strong>${fmtLimits(a)}</strong></div>
         </div>
-        <div class="mobile-usage">${providerUsageHtml(a)}</div>
-        <div class="mobile-actions actions">
+        <div class="mobile-account-usage">${providerUsageHtml(a)}</div>
+        <div class="mobile-account-actions actions">
           <button data-test="${a.id}" class="ghost">Test</button>
           <button data-usage="${a.id}" class="ghost">Usage</button>
           <button data-edit="${a.id}" class="ghost">Edit</button>
-          <button data-del="${a.id}" class="danger">Delete</button>
+          <button data-del="${a.id}" class="danger mobile-account-delete">Delete account</button>
         </div>`;
       cards.appendChild(card);
     }
@@ -610,17 +613,17 @@
           </div>
           ${status}
         </div>
-        <div class="mobile-fields">
-          <div class="mobile-field mobile-field-wide"><span>Key</span><strong><code>${escapeHtml(k.tokenPreview)}</code></strong></div>
-          <div class="mobile-field"><span>Enabled</span><label class="mobile-check"><input type="checkbox" data-key-toggle="${k.id}" ${k.enabled ? "checked" : ""} /> ${k.enabled ? "On" : "Off"}</label></div>
-          <div class="mobile-field"><span>Providers</span><strong>${providers}</strong></div>
-          <div class="mobile-field"><span>Limits</span><strong>${limits}</strong></div>
-          <div class="mobile-field"><span>Last used</span><strong>${lastUsed}</strong></div>
+        <div class="mobile-key-list">
+          <div class="mobile-key-row mobile-key-token"><span>Key</span><strong><code>${escapeHtml(k.tokenPreview)}</code></strong></div>
+          <div class="mobile-key-row"><span>Status</span><label class="mobile-check"><input type="checkbox" data-key-toggle="${k.id}" ${k.enabled ? "checked" : ""} /> ${k.enabled ? "Enabled" : "Disabled"}</label></div>
+          <div class="mobile-key-row"><span>Providers</span><strong>${providers}</strong></div>
+          <div class="mobile-key-row"><span>Limits</span><strong>${limits}</strong></div>
+          <div class="mobile-key-row"><span>Last used</span><strong>${lastUsed}</strong></div>
         </div>
-        <div class="mobile-actions actions">
+        <div class="mobile-key-actions actions">
           <button data-key-edit="${k.id}" class="ghost">Edit</button>
           <button data-key-reroll="${k.id}" class="ghost">Reroll</button>
-          <button data-key-del="${k.id}" class="danger">Delete</button>
+          <button data-key-del="${k.id}" class="danger mobile-key-delete">Delete key</button>
         </div>`;
       cards.appendChild(card);
     }

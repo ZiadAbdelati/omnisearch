@@ -1,13 +1,14 @@
 # Portainer-friendly stack fragment / standalone service.
-# Prerequisite: image already built on the host:
-#   docker build -t search-gateway:latest /path/to/search-gateway
+# Prerequisite: image already built (local or GHCR):
+#   docker build -t omnisearch:latest .
+#   # or: docker pull ghcr.io/ziadabdelati/omnisearch:latest
 #
 # Portainer "build: ." often returns HTTP 500 because web editors have no
-# build context (Dockerfile + source). Prefer a pre-built local image.
+# build context (Dockerfile + source). Prefer a pre-built image.
 
 services:
   omnisearch:
-    image: search-gateway:latest
+    image: ghcr.io/ziadabdelati/omnisearch:latest
     container_name: omnisearch
     ports:
       - "8787:8787"
@@ -19,11 +20,14 @@ services:
       DATABASE_PATH: /data/gateway.db
       DEFAULT_SEARXNG_URL: ${DEFAULT_SEARXNG_URL:-http://searxng:8080}
     volumes:
-      - /opt/search-gateway/data:/data
+      - omnisearch-data:/data
     restart: unless-stopped
     networks:
-      - paseo
+      - search
 
 networks:
-  paseo:
+  search:
     external: true
+
+volumes:
+  omnisearch-data:

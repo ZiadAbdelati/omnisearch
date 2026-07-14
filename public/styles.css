@@ -627,6 +627,85 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
     white-space: normal;
   }
   .mobile-actions button { width: 100%; }
+  .account-mobile-card { min-width: 0; padding: 14px; }
+  .mobile-account-list {
+    margin-top: 12px;
+    border-top: 1px solid rgba(36,48,68,.8);
+  }
+  .mobile-account-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 40px;
+    border-bottom: 1px solid rgba(36,48,68,.8);
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .mobile-account-row strong,
+  .mobile-account-row .mobile-check {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 650;
+  }
+
+  .mobile-account-usage {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .mobile-account-actions.actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .key-mobile-card { min-width: 0; }
+  .mobile-key-list {
+    margin-top: 12px;
+    border-top: 1px solid rgba(36,48,68,.8);
+  }
+  .mobile-key-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 40px;
+    border-bottom: 1px solid rgba(36,48,68,.8);
+    color: var(--muted);
+    font-size: 12px;
+  }
+  .mobile-key-row strong,
+  .mobile-key-row .mobile-check {
+    min-width: 0;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 650;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+  .mobile-key-row .mobile-check {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+  }
+  .mobile-key-token { align-items: flex-start; padding: 10px 0; }
+  .mobile-key-token code { overflow-wrap: anywhere; }
+  .mobile-key-actions.actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .mobile-key-actions .mobile-key-delete {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .mobile-account-actions .mobile-account-delete {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
   #account-dialog[open],
   #key-dialog[open],
   #event-dialog[open] {

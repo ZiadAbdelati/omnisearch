@@ -14,7 +14,7 @@ See [AGENTS.md](./AGENTS.md) for architecture and agent conventions.
 ## Quick start (Docker)
 
 ```bash
-cd search-gateway
+cd omnisearch
 cp .env.example .env
 # edit SECRET_KEY and ADMIN_TOKEN
 docker compose up -d --build
@@ -24,18 +24,35 @@ docker compose up -d --build
 - Native search: generate a managed key in **API keys**, then call `POST /v1/search` with `Authorization: Bearer <managed key>`.
 - SearXNG JSON compatibility: authenticated `GET /v1/search?format=json&q=...`; supports the Odysseus request contract only.
 
+## GitHub Container Registry
+
+This repository includes a manual workflow at `.github/workflows/docker-publish.yml`.
+
+1. In GitHub → **Actions** → **Build and publish Docker image** → **Run workflow**.
+2. Optionally set an extra tag (for example `v1.0.0`) and choose whether to push `latest`.
+3. Pull the image:
+   ```bash
+   docker pull ghcr.io/ziadabdelati/omnisearch:latest
+   ```
+
+If the package is private, authenticate first:
+```bash
+echo "$GITHUB_TOKEN" | docker login ghcr.io -u USERNAME --password-stdin
+```
+
 ## Portainer
 
 Portainer stack editor **`build: .` often fails with HTTP 500** — there is no build context (source tree) when you only paste YAML.
 
 1. On the Docker host, build once:
    ```bash
-   cd /root/workspace/search-gateway   # or /opt/search-gateway/src-tree
-   docker build -t search-gateway:latest .
-   mkdir -p /opt/search-gateway/data
+   git clone https://github.com/ZiadAbdelati/omnisearch.git
+   cd omnisearch
+   docker build -t omnisearch:latest .
+   mkdir -p ./data
    ```
-2. In the stack, use **`image: search-gateway:latest`** (see `docker-compose.portainer.yml`), not `build: .`.
-3. Put the service on the same external network as SearXNG (e.g. `paseo`) and set `DEFAULT_SEARXNG_URL=http://searxng:8080`.
+2. In the stack, use **`image: omnisearch:latest`** (see `docker-compose.portainer.yml`), not `build: .`.
+3. Put the service on the same Docker network as SearXNG and set `DEFAULT_SEARXNG_URL=http://searxng:8080`.
 
 ## Quick start (Node)
 
@@ -54,7 +71,7 @@ In the UI (**Accounts → Add**):
 | tavily | API key | optional |
 | brave | API key | optional |
 | exa | API key | optional |
-| searxng | optional bearer | **required** e.g. `http://192.168.50.29:8080` |
+| searxng | optional bearer | **required** e.g. `http://searxng:8080` |
 
 Lower **priority** is tried first. Use **Test** before saving if you want.
 
@@ -92,7 +109,7 @@ Odysseus’s **SearXNG (self-hosted)** provider issues authenticated JSON search
    ```text
    http://<gateway-key>:@omnisearch:8787/v1
    ```
-   The trailing `@` supplies `<gateway-key>` as the HTTP Basic username with an empty password. Use `omnisearch` only when Odysseus shares the `paseo` Docker network; otherwise use the gateway's reachable host/IP.
+   The trailing `@` supplies `<gateway-key>` as the HTTP Basic username with an empty password. Use the gateway hostname only when Odysseus shares a Docker network with OmniSearch; otherwise use the gateway's reachable host/IP.
 3. Click **Test**. The URL must retain the `/v1` suffix.
 
 Odysseus persists that URL in application settings, and its HTTP client may log the complete URL including the Basic-auth username. Docker access, Odysseus logs, and an Odysseus application-data backup can expose the embedded key. Treat it as an application secret: use a dedicated key, restrict it, and reroll it from the gateway UI if the Odysseus host, logs, or backup is exposed.
