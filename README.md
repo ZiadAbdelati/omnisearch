@@ -32,7 +32,7 @@ No build step, no framework churn: Node 20, Express, SQLite, and a vanilla-JS ad
 | `brave` | Brave Search API subscription token | Quota read from rate-limit response headers |
 | `tavily` | `tvly-…` API key | Provider-side credit usage reported |
 | `exa` | Exa API key | Neural/semantic results |
-| `searxng` | *optional* bearer | Self-hosted; `baseUrl` required |
+| `searxng` | *optional* bearer | Self-hosted; `baseUrl` required (no inline credentials) |
 | `jina` | Jina API key | `s.jina.ai` |
 | `kagi` | Kagi API token | |
 | `firecrawl` | Firecrawl API key | |
@@ -209,6 +209,7 @@ npm run smoke          # smoke test against a running server
 node scripts/ui-regressions.js
 node scripts/stats-filter-regressions.js
 node scripts/secret-redaction-regressions.js
+node scripts/baseurl-credentials-regressions.js
 ```
 
 Architecture, module layout, the full admin API table, and the conventions to follow when changing things are in [AGENTS.md](./AGENTS.md).

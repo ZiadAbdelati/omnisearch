@@ -2,7 +2,7 @@ const express = require("express");
 const { requireAdminAuth } = require("../auth");
 const { config } = require("../config");
 const { open, redactSecret } = require("../crypto");
-const { errorPayload, redactSecrets } = require("../security");
+const { errorPayload, redactSecrets, urlHasCredentials } = require("../security");
 const {
   listAccounts,
   getAccount,
@@ -44,6 +44,11 @@ function publicAccount(row) {
   return a;
 }
 
+
+const CREDENTIAL_URL_ERROR =
+  "baseUrl must not embed credentials (http://user:pass@host). " +
+  "Node's fetch rejects such URLs, so the account could never be used. " +
+  "Put the token in the secret field instead.";
 
 function keyPatch(body = {}) {
   return {
@@ -122,6 +127,9 @@ router.post("/accounts", (req, res) => {
     if (b.provider === "searxng" && !b.baseUrl) {
       return res.status(400).json({ error: "baseUrl required for searxng" });
     }
+    if (urlHasCredentials(b.baseUrl)) {
+      return res.status(400).json({ error: CREDENTIAL_URL_ERROR });
+    }
     const row = insertAccount({
       provider: b.provider,
       name: b.name,
@@ -147,6 +155,9 @@ router.patch("/accounts/:id", (req, res) => {
     const row = getAccount(req.params.id);
     if (!row) return res.status(404).json({ error: "Not found" });
     const b = req.body || {};
+    if (urlHasCredentials(b.baseUrl)) {
+      return res.status(400).json({ error: CREDENTIAL_URL_ERROR });
+    }
     const updated = updateAccount(req.params.id, {
       provider: b.provider,
       name: b.name,
@@ -251,6 +262,9 @@ router.get("/accounts/:id/usage", async (req, res) => {
 router.post("/accounts/test", async (req, res) => {
   try {
     const b = req.body || {};
+    if (urlHasCredentials(b.baseUrl)) {
+      return res.status(400).json({ ok: false, error: CREDENTIAL_URL_ERROR });
+    }
     const result = await testAccountConfig({
       provider: b.provider,
       name: b.name,

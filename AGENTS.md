@@ -130,7 +130,7 @@ All under `/admin/api/*`, header `Authorization: Bearer <ADMIN_TOKEN>` (or cooki
 | `provider` | `brave` `tavily` `exa` `searxng` `jina` `kagi` `firecrawl` `serpapi` `bing` `google_pse` `parallel` |
 | `name` | Human label |
 | `secret` | API key (encrypted at rest); optional for searxng |
-| `baseUrl` | Override endpoint (SearXNG base, custom proxies) |
+| `baseUrl` | Override endpoint (SearXNG base, custom proxies). Rejected if it embeds inline credentials — Node's fetch refuses such URLs, so they are dead config that only parks a plaintext password in the DB. |
 | `priority` | Lower number = tried first (within routing) |
 | `enabled` | Soft disable |
 | `weight` | For weighted choice among same-priority healthy accounts |
@@ -169,7 +169,7 @@ Multiple accounts **of the same provider** are supported (several Brave keys, et
 - Timing-safe token comparison; no tokens in query strings.
 - CSP / frame deny / nosniff; global per-IP rate limits plus managed-key provider/rate limits.
 - `NODE_ENV=production` or `OMNISEARCH_ENFORCE_SECURE=1` refuses placeholder required secrets.
-- Never log raw secrets. See [SECURITY.md](./SECURITY.md).
+- Never log raw secrets. Route provider/upstream error text through `redactSecrets()` before returning, storing, or printing it. See [SECURITY.md](./SECURITY.md).
 - Bind to LAN / reverse proxy with TLS for real deployments.
 
 ```bash

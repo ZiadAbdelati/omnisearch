@@ -201,6 +201,29 @@ function redactSecrets(text) {
   return out;
 }
 
+// scheme://userinfo@ — the greedy class stops at the first /?# and backtracks to
+// the last @, matching how a URL parser delimits userinfo.
+const URL_CREDENTIALS = /^([a-z][a-z0-9+.-]*:\/\/)[^/?#]*@/i;
+
+/**
+ * True when a URL carries inline credentials (http://user:pass@host).
+ *
+ * Node's fetch rejects such URLs outright ("Request cannot be constructed from
+ * a URL that includes credentials"), so a baseUrl in this shape can never
+ * reach a provider — it only parks a plaintext password in the database and in
+ * every admin API response. Reject it on the way in.
+ */
+function urlHasCredentials(value) {
+  if (!value) return false;
+  return URL_CREDENTIALS.test(String(value).trim());
+}
+
+/** Remove inline credentials from a URL, leaving the rest byte-for-byte. */
+function stripUrlCredentials(value) {
+  if (!value) return value;
+  return String(value).trim().replace(URL_CREDENTIALS, "$1");
+}
+
 /**
  * Shape a thrown search error into a safe JSON body.
  * Redacts the top-level message and every recorded attempt.
@@ -230,6 +253,8 @@ module.exports = {
   requireJson,
   enforceSecure,
   redactSecrets,
+  urlHasCredentials,
+  stripUrlCredentials,
   errorPayload,
   sanitizeErrorMessage,
 };

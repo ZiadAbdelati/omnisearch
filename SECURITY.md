@@ -32,6 +32,7 @@ With `NODE_ENV=production` or `OMNISEARCH_ENFORCE_SECURE=1`, the process **refus
 - Production config assertion
 - Provider errors sanitized in logs (best-effort redaction)
 - Static files: `dotfiles: deny`
+- Account `baseUrl` may not embed inline credentials (`http://user:pass@host`); such URLs are rejected on write and stripped from existing rows on upgrade
 
 ## Deploy checklist
 

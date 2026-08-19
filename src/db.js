@@ -5,7 +5,8 @@ const Database = require("better-sqlite3");
 const { v4: uuid } = require("uuid");
 const { config } = require("./config");
 const { seal } = require("./crypto");
-const SCHEMA_VERSION = 6;
+const { stripUrlCredentials, redactSecrets } = require("./security");
+const SCHEMA_VERSION = 7;
 
 /** @type {import('better-sqlite3').Database} */
 let db;
@@ -121,6 +122,39 @@ function initDb() {
       WHERE api_key_id IS NOT NULL`);
     db.exec("UPDATE meta SET value = '6' WHERE key = 'schema_version'");
     currentVersion = 6;
+  }
+  if (currentVersion < 7) {
+    // Inline credentials (http://user:pass@host) were always dead config —
+    // Node's fetch refuses to build a request from such a URL — but they sat in
+    // the DB in plaintext and were echoed by the admin API. Strip them.
+    const rows = db
+      .prepare("SELECT id, base_url FROM accounts WHERE base_url LIKE '%@%'")
+      .all();
+    const update = db.prepare("UPDATE accounts SET base_url = ? WHERE id = ?");
+    for (const row of rows) {
+      const cleaned = stripUrlCredentials(row.base_url);
+      if (cleaned !== row.base_url) update.run(cleaned, row.id);
+    }
+
+    // Error text recorded before provider errors were redacted can still hold
+    // the key that was sent. Scrub the stored history as well.
+    const scrub = db.transaction((table, column, key) => {
+      const select = db.prepare(
+        `SELECT ${key} AS id, ${column} AS text FROM ${table} WHERE ${column} IS NOT NULL`,
+      );
+      const write = db.prepare(
+        `UPDATE ${table} SET ${column} = ? WHERE ${key} = ?`,
+      );
+      for (const row of select.all()) {
+        const cleaned = redactSecrets(row.text);
+        if (cleaned !== row.text) write.run(cleaned, row.id);
+      }
+    });
+    scrub("accounts", "last_error", "id");
+    scrub("usage_events", "error", "rowid");
+
+    db.exec("UPDATE meta SET value = '7' WHERE key = 'schema_version'");
+    currentVersion = 7;
   }
   seedDefaults();
   return db;
