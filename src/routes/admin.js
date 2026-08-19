@@ -2,6 +2,7 @@ const express = require("express");
 const { requireAdminAuth } = require("../auth");
 const { config } = require("../config");
 const { open, redactSecret } = require("../crypto");
+const { errorPayload, redactSecrets } = require("../security");
 const {
   listAccounts,
   getAccount,
@@ -137,7 +138,7 @@ router.post("/accounts", (req, res) => {
     });
     res.status(201).json({ account: publicAccount(row) });
   } catch (e) {
-    res.status(500).json({ error: e.message || String(e) });
+    res.status(500).json({ error: redactSecrets(e.message || String(e)) });
   }
 });
 
@@ -164,7 +165,7 @@ router.patch("/accounts/:id", (req, res) => {
     });
     res.json({ account: publicAccount(updated) });
   } catch (e) {
-    res.status(500).json({ error: e.message || String(e) });
+    res.status(500).json({ error: redactSecrets(e.message || String(e)) });
   }
 });
 
@@ -209,7 +210,7 @@ router.post("/accounts/:id/test", async (req, res) => {
     }
     res.json(result);
   } catch (e) {
-    const msg = e.message || String(e);
+    const msg = redactSecrets(e.message || String(e));
     try {
       const row = getAccount(req.params.id);
       if (row) updateAccount(row.id, { lastError: msg });
@@ -243,7 +244,7 @@ router.get("/accounts/:id/usage", async (req, res) => {
     });
     res.json({ usage });
   } catch (e) {
-    res.status(502).json({ error: e.message || String(e) });
+    res.status(502).json({ error: redactSecrets(e.message || String(e)) });
   }
 });
 
@@ -260,7 +261,7 @@ router.post("/accounts/test", async (req, res) => {
   } catch (e) {
     res.status(400).json({
       ok: false,
-      error: e.message || String(e),
+      error: redactSecrets(e.message || String(e)),
       code: e.code,
     });
   }
@@ -281,10 +282,7 @@ router.post("/search-test", async (req, res) => {
     });
     res.json(result);
   } catch (e) {
-    res.status(e.status || 500).json({
-      error: e.message || String(e),
-      attempts: e.attempts || undefined,
-    });
+    res.status(e.status || 500).json(errorPayload(e));
   }
 });
 
@@ -301,7 +299,7 @@ router.post("/api-keys", (req, res) => {
     const result = insertApiKey(keyPatch(b));
     res.status(201).json(result);
   } catch (e) {
-    res.status(500).json({ error: e.message || String(e) });
+    res.status(500).json({ error: redactSecrets(e.message || String(e)) });
   }
 });
 
@@ -313,7 +311,7 @@ router.patch("/api-keys/:id", (req, res) => {
     const key = updateApiKey(req.params.id, keyPatch(req.body || {}));
     res.json({ key });
   } catch (e) {
-    res.status(500).json({ error: e.message || String(e) });
+    res.status(500).json({ error: redactSecrets(e.message || String(e)) });
   }
 });
 
@@ -323,7 +321,7 @@ router.post("/api-keys/:id/reroll", (req, res) => {
     if (!result) return res.status(404).json({ error: "Not found" });
     res.json(result);
   } catch (e) {
-    res.status(500).json({ error: e.message || String(e) });
+    res.status(500).json({ error: redactSecrets(e.message || String(e)) });
   }
 });
 

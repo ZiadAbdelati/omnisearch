@@ -172,7 +172,7 @@ http://<managed-key>:@omnisearch:8787/v1
 | `DATABASE_PATH` | `./data/gateway.db` | SQLite location |
 | `DEFAULT_SEARXNG_URL` | — | Seeds a SearXNG account on first boot if the DB is empty |
 | `GATEWAY_API_TOKEN` | — | Optional legacy seed, imported once as a managed key |
-| `NODE_ENV` / `SG_ENFORCE_SECURE` | set in the Docker image | Refuse to start on placeholder secrets |
+| `NODE_ENV` / `OMNISEARCH_ENFORCE_SECURE` | set in the Docker image | Refuse to start on placeholder secrets. The older `SG_ENFORCE_SECURE` is still honoured. |
 | `TRUST_PROXY` | — | Set to `1` only behind a trusted reverse proxy |
 | `RATE_LIMIT_GLOBAL_RPM` / `_SEARCH_RPM` / `_ADMIN_RPM` | `300` / `60` / `120` | Per-IP limits |
 
@@ -208,6 +208,7 @@ npm start              # or: npm run dev  (node --watch)
 npm run smoke          # smoke test against a running server
 node scripts/ui-regressions.js
 node scripts/stats-filter-regressions.js
+node scripts/secret-redaction-regressions.js
 ```
 
 Architecture, module layout, the full admin API table, and the conventions to follow when changing things are in [AGENTS.md](./AGENTS.md).

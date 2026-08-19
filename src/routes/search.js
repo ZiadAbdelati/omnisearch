@@ -1,5 +1,6 @@
 const express = require("express");
 const { requireGatewayAuth } = require("../auth");
+const { errorPayload } = require("../security");
 const { executeSearch } = require("../router");
 
 const router = express.Router();
@@ -42,10 +43,7 @@ router.post("/search", requireGatewayAuth, async (req, res) => {
     });
     res.json(result);
   } catch (e) {
-    res.status(e.status || 500).json({
-      error: e.message || String(e),
-      attempts: e.attempts || undefined,
-    });
+    res.status(e.status || 500).json(errorPayload(e));
   }
 });
 
@@ -64,10 +62,7 @@ router.get("/search", requireGatewayAuth, async (req, res) => {
     });
     res.json(searxngFormat ? searxngResults(result) : result);
   } catch (e) {
-    res.status(e.status || 500).json({
-      error: e.message || String(e),
-      attempts: e.attempts || undefined,
-    });
+    res.status(e.status || 500).json(errorPayload(e));
   }
 });
 

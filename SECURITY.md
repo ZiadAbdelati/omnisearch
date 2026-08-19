@@ -19,7 +19,7 @@ It is **not** hardened as a multi-tenant public SaaS. Deploy behind a private ne
 | Managed API keys | `/v1/search` clients | Generate in Admin UI → API keys; set provider/rate limits per client |
 | `GATEWAY_API_TOKEN` | Optional legacy seed | If present during migration, imported once as a managed key |
 
-With `NODE_ENV=production` or `SG_ENFORCE_SECURE=1`, the process **refuses to start** if required secrets look like placeholders or are too short.
+With `NODE_ENV=production` or `OMNISEARCH_ENFORCE_SECURE=1`, the process **refuses to start** if required secrets look like placeholders or are too short.
 
 ## What we implement
 

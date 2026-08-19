@@ -1,7 +1,7 @@
 const { config } = require("./config");
 const { initDb } = require("./db");
 const { createApp } = require("./app");
-const { assertSecureConfig } = require("./security");
+const { assertSecureConfig, enforceSecure } = require("./security");
 
 try {
   assertSecureConfig(config);
@@ -11,10 +11,7 @@ try {
 }
 
 // Soft warning in non-production
-if (
-  process.env.NODE_ENV !== "production" &&
-  process.env.SG_ENFORCE_SECURE !== "1"
-) {
+if (process.env.NODE_ENV !== "production" && !enforceSecure()) {
   if (
     /change-me|dev-insecure|dev-local|admin-dev-token|gateway-dev-token/i.test(
       config.secretKey + config.adminToken + config.gatewayToken,

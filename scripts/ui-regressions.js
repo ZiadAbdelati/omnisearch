@@ -59,7 +59,7 @@ function createHarness() {
   const ids = [
     'login-view', 'app', 'login-error', 'toast-container', 'acc-provider', 'provider-hint', 'secret-label',
     'login-btn', 'login-token', 'logout-btn', 'health-line', 'tab-accounts', 'accounts-body',
-    'search-gateway-token', 'run-search-btn', 'search-out', 'search-q', 'search-limit', 'search-mode', 'search-provider',
+    'run-search-btn', 'search-out', 'search-q', 'search-limit', 'search-mode', 'search-provider',
     'keys-body', 'new-key-token', 'copy-key-buffer', 'new-key-dialog', 'copy-key-btn', 'dismiss-new-key-dialog',
     'add-key-btn', 'cancel-key-dialog', 'key-form', 'key-dialog', 'key-dialog-title', 'key-id', 'key-name',
     'key-providers', 'key-rpm', 'key-daily', 'key-monthly', 'key-max-results', 'key-notes', 'key-enabled',

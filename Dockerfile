@@ -22,7 +22,7 @@ ENV HOST=0.0.0.0 \
     PORT=8787 \
     DATABASE_PATH=/data/gateway.db \
     NODE_ENV=production \
-    SG_ENFORCE_SECURE=1
+    OMNISEARCH_ENFORCE_SECURE=1
 
 COPY package.json package-lock.json ./
 COPY --from=builder /app/node_modules ./node_modules

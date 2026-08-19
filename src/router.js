@@ -14,6 +14,7 @@ const {
 } = require("./db");
 const { open } = require("./crypto");
 const { getProvider, ProviderError } = require("./providers");
+const { redactSecrets } = require("./security");
 
 const MODE_PREFERENCE = {
   auto: [],
@@ -184,7 +185,7 @@ function materializeAccount(row) {
 
 function applyFailure(row, err) {
   const patch = {
-    lastError: err.message || String(err),
+    lastError: redactSecrets(err.message || String(err)),
   };
   if (err instanceof ProviderError) {
     if (err.code === "rate_limited") {
@@ -352,6 +353,9 @@ async function executeSearch(opts) {
         e instanceof ProviderError
           ? e
           : new ProviderError("upstream", e.message || String(e));
+      // Upstream text can carry the key we just sent; redact before it reaches
+      // the usage log, the account row, or the caller.
+      const safeMessage = redactSecrets(pe.message);
       recordUsage({
         accountId: row.id,
         apiKeyId: opts.apiKey?.id,
@@ -363,7 +367,7 @@ async function executeSearch(opts) {
         queryHash: qh,
         resultCount: 0,
         latencyMs: ms,
-        error: `${pe.code}: ${pe.message}`,
+        error: `${pe.code}: ${safeMessage}`,
         mode,
         ip: opts.ip,
         userAgent: opts.userAgent,
@@ -375,7 +379,7 @@ async function executeSearch(opts) {
         provider: row.provider,
         ok: false,
         ms,
-        error: pe.message,
+        error: safeMessage,
         code: pe.code,
       });
     }

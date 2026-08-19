@@ -14,11 +14,21 @@ function timingSafeEqualStr(a, b) {
   return crypto.timingSafeEqual(ba, bb);
 }
 
+/**
+ * True when the strict startup checks are requested.
+ * `SG_ENFORCE_SECURE` is the pre-rename spelling, still honoured so existing
+ * deployments keep working.
+ */
+function enforceSecure() {
+  return (
+    process.env.OMNISEARCH_ENFORCE_SECURE === "1" ||
+    process.env.SG_ENFORCE_SECURE === "1"
+  );
+}
+
 /** Reject obviously insecure bootstrap configs in production. */
 function assertSecureConfig(config) {
-  const prod =
-    process.env.NODE_ENV === "production" ||
-    process.env.SG_ENFORCE_SECURE === "1";
+  const prod = process.env.NODE_ENV === "production" || enforceSecure();
   if (!prod) return;
 
   const bad = [];
@@ -46,7 +56,7 @@ function assertSecureConfig(config) {
   }
   if (bad.length) {
     throw new Error(
-      `Refusing to start with insecure config (NODE_ENV=production or SG_ENFORCE_SECURE=1):\n- ${bad.join("\n- ")}`,
+      `Refusing to start with insecure config (NODE_ENV=production or OMNISEARCH_ENFORCE_SECURE=1):\n- ${bad.join("\n- ")}`,
     );
   }
 }
@@ -145,13 +155,71 @@ function requireJson(req, res, next) {
   next();
 }
 
+/**
+ * Strip credentials out of free-form text before it is returned to a client,
+ * written to the usage log, or printed.
+ *
+ * Upstream error bodies and fetch failure messages routinely carry the key we
+ * just sent: providers echo request URLs (SerpAPI and Google PSE pass the key
+ * as a query parameter), a SearXNG baseUrl may embed HTTP basic credentials,
+ * and some APIs quote the rejected key back in the error body.
+ */
+function redactSecrets(text) {
+  if (text == null) return text;
+  let out = String(text);
+
+  // URL userinfo: http://user:pass@host → http://[redacted]@host
+  out = out.replace(/:\/\/[^\s/?#@]+@/g, "://[redacted]@");
+
+  // Credential-bearing query parameters
+  out = out.replace(
+    /([?&](?:api[-_]?key|key|token|access[-_]token|auth|secret|password|subscription[-_]key|x-api-key)=)[^&\s"'`]+/gi,
+    "$1[redacted]",
+  );
+
+  // Authorization-style headers quoted in an error
+  out = out.replace(
+    /\b(authorization|x-api-key|x-subscription-token|ocp-apim-subscription-key)(\s*[:=]\s*)[^\s,;"'`]+/gi,
+    "$1$2[redacted]",
+  );
+
+  // Bare auth schemes
+  out = out.replace(
+    /\b(Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/gi,
+    "$1 [redacted]",
+  );
+
+  // Recognizable provider key shapes, wherever they appear
+  out = out
+    .replace(/\btvly-[A-Za-z0-9_-]+/g, "tvly-[redacted]")
+    .replace(/\bBSA[A-Za-z0-9_-]{10,}/g, "BSA[redacted]")
+    .replace(/\bsk-[A-Za-z0-9_-]{16,}/g, "sk-[redacted]")
+    .replace(/\bAIza[0-9A-Za-z_-]{30,}/g, "AIza[redacted]")
+    .replace(/\bgithub_pat_[A-Za-z0-9_]{20,}/g, "github_pat_[redacted]")
+    .replace(/\bgh[pousr]_[A-Za-z0-9]{20,}/g, "gh_[redacted]");
+
+  return out;
+}
+
+/**
+ * Shape a thrown search error into a safe JSON body.
+ * Redacts the top-level message and every recorded attempt.
+ */
+function errorPayload(err) {
+  const attempts = Array.isArray(err?.attempts)
+    ? err.attempts.map((a) =>
+        a && a.error ? { ...a, error: redactSecrets(a.error) } : a,
+      )
+    : undefined;
+  return {
+    error: redactSecrets(err?.message || String(err)),
+    attempts,
+  };
+}
+
 function sanitizeErrorMessage(err) {
   const msg = err && err.message ? String(err.message) : "Internal error";
-  // strip potential secret-looking substrings
-  return msg
-    .replace(/Bearer\s+\S+/gi, "Bearer [redacted]")
-    .replace(/tvly-[A-Za-z0-9_-]+/g, "tvly-[redacted]")
-    .replace(/BSA[A-Za-z0-9_-]+/g, "BSA[redacted]");
+  return redactSecrets(msg);
 }
 
 module.exports = {
@@ -160,5 +228,8 @@ module.exports = {
   securityHeaders,
   rateLimit,
   requireJson,
+  enforceSecure,
+  redactSecrets,
+  errorPayload,
   sanitizeErrorMessage,
 };

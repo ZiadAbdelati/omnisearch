@@ -25,7 +25,7 @@ This is **not** an LLM proxy (not OmniRoute). It only aggregates **search APIs**
 ## Layout
 
 ```text
-search-gateway/
+omnisearch/
   AGENTS.md           ← this file
   package.json
   Dockerfile
@@ -168,7 +168,7 @@ Multiple accounts **of the same provider** are supported (several Brave keys, et
 - Basic-auth keys embedded in a client URL can be stored or logged by that client. Require a dedicated, least-privilege, rerollable key; do not put managed keys in query strings.
 - Timing-safe token comparison; no tokens in query strings.
 - CSP / frame deny / nosniff; global per-IP rate limits plus managed-key provider/rate limits.
-- `NODE_ENV=production` or `SG_ENFORCE_SECURE=1` refuses placeholder required secrets.
+- `NODE_ENV=production` or `OMNISEARCH_ENFORCE_SECURE=1` refuses placeholder required secrets.
 - Never log raw secrets. See [SECURITY.md](./SECURITY.md).
 - Bind to LAN / reverse proxy with TLS for real deployments.
 
@@ -177,7 +177,7 @@ cp .env.example .env
 npm install
 npm start
 # UI http://127.0.0.1:8787/
-# Search: curl -H "Authorization: Bearer $SEARCH_GATEWAY_KEY" \
+# Search: curl -H "Authorization: Bearer $OMNISEARCH_KEY" \
 #   -H 'Content-Type: application/json' \
 #   -d '{"query":"example domain","limit":3}' \
 #   http://127.0.0.1:8787/v1/search
